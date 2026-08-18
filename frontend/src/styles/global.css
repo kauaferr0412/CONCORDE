@@ -1,99 +1,122 @@
 /* ============================================================
    Design tokens
-   Paleta slate + indigo, deliberadamente diferente do
-   roxo/cinza padrão do Discord — mais sóbria, tipo "console
-   de produto B2B" do que "app de comunidade gamer".
+   Paleta "deep space" azul-marinho + electric blue + turquesa,
+   replicada do mockup Potato Chat.html (Claude design) - mesmos
+   nomes de variavel de antes, valores novos, pra nao precisar
+   reescrever cada componente que ja consome esses tokens.
    ============================================================ */
 :root {
-  --bg-app: #0b0d12;
-  --bg-rail: #0e1015;
-  --bg-panel: #12151c;
-  --bg-panel-2: #161923;
-  --bg-elevated: #1b1f2a;
-  --bg-hover: #212633;
-  --bg-input: #0d0f15;
+  --bg-app: #050816;
+  --bg-app-grad:
+    radial-gradient(1200px 600px at 78% -8%, rgba(47, 107, 255, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 10% 0%, rgba(0, 194, 168, 0.10), transparent 55%),
+    #050816;
+  --bg-rail: #070b1a;
+  --bg-panel: #0d1228;
+  --bg-panel-2: #121933;
+  --bg-elevated: #19213f;
+  --bg-hover: #222c50;
+  --bg-input: #070b1a;
 
-  --border: #232838;
-  --border-soft: #1a1e29;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #e9ebf2;
-  --text-secondary: #9aa3b8;
-  --text-muted: #656e83;
+  --text-primary: #f4f6fd;
+  --text-secondary: #aeb7d2;
+  --text-muted: #717c9e;
 
-  --accent: #6a6cf1;
-  --accent-hover: #7d7ffb;
-  --accent-soft: rgba(106, 108, 241, 0.16);
-  --accent-text: #c8c9ff;
+  --accent: #2f6bff;
+  --accent-hover: #4d82ff;
+  --accent-press: #1d49c9;
+  --accent-soft: rgba(47, 107, 255, 0.14);
+  --accent-text: #7ba3ff;
+  --accent-ring: rgba(47, 107, 255, 0.4);
 
-  --success: #33c281;
-  --success-soft: rgba(51, 194, 129, 0.14);
-  --danger: #ef5a6f;
-  --danger-soft: rgba(239, 90, 111, 0.16);
-  --warning: #e0b34d;
-  --warning-soft: rgba(224, 179, 77, 0.14);
+  --intel: #00c2a8;
+  --intel-soft: rgba(0, 194, 168, 0.14);
 
-  --radius-sm: 7px;
-  --radius-md: 11px;
+  --success: #17b26a;
+  --success-soft: rgba(23, 178, 106, 0.16);
+  --danger: #f04438;
+  --danger-soft: rgba(240, 68, 56, 0.16);
+  --warning: #f5a524;
+  --warning-soft: rgba(245, 165, 36, 0.16);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 2px 8px rgba(10, 16, 37, 0.3);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glow-accent: 0 0 0 1px rgba(47, 107, 255, 0.3), 0 8px 28px rgba(47, 107, 255, 0.28);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {
   font-family: var(--font);
-  background: var(--bg-app);
+  background: var(--bg-app-grad);
+  background-attachment: fixed;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #262b3a; border-radius: 10px; border: 2px solid var(--bg-panel); }
-::-webkit-scrollbar-thumb:hover { background: #323952; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); background-clip: content-box; }
 
 button {
   cursor: pointer;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--bg-elevated);
   color: var(--text-primary);
   padding: 9px 16px;
   font-size: 13.5px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   font-family: inherit;
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+  transition: background 0.2s var(--ease-standard), border-color 0.2s var(--ease-standard),
+    box-shadow 0.2s var(--ease-standard), transform 0.12s var(--ease-standard);
 }
 button:hover { background: var(--bg-hover); }
-button:active { transform: translateY(1px); }
+button:active { transform: translateY(0.5px) scale(0.985); }
 button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
 input {
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   padding: 10px 13px;
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color 0.2s var(--ease-standard), box-shadow 0.2s var(--ease-standard);
 }
 input::placeholder { color: var(--text-muted); }
-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 
 select {
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   padding: 10px 13px;
   font-size: 14px;
   font-family: inherit;
   width: 100%;
 }
-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 
 /* ============================================================
    Auth
@@ -133,6 +156,7 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
 .auth-heading { text-align: center; margin-bottom: 6px; }
 .auth-card h1 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 23px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -176,6 +200,7 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   font-size: 14px;
   margin-top: 4px;
   width: 100%;
+  box-shadow: var(--glow-accent);
 }
 .auth-card > button[type="submit"]:hover { background: var(--accent-hover); }
 .auth-error {
@@ -277,7 +302,7 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   transition: opacity 0.08s ease;
 }
 .collapse-toggle { flex-shrink: 0; }
-.channel-sidebar-header strong { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.channel-sidebar-header strong { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 .channel-list { flex: 1; overflow-y: auto; padding: 14px 10px; }
 .channel-group-title {
   font-size: 10.5px;
@@ -408,7 +433,7 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
 .user-bar-info:hover { background: var(--bg-hover); }
 .user-bar-avatar {
   width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--accent), #4747c9);
+  background: linear-gradient(135deg, var(--accent), var(--intel));
   color: #fff; display: flex; align-items: center; justify-content: center;
   font-size: 11.5px; font-weight: 700;
 }
@@ -448,8 +473,10 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .chat-window.empty { align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; }
 .chat-header {
   padding: 15px 20px;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 14.5px;
+  letter-spacing: -0.01em;
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-panel);
 }
@@ -575,7 +602,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .chat-attach-btn { flex-shrink: 0; }
 .chat-input-field { position: relative; flex: 1; min-width: 0; }
 .chat-input-field input { width: 100%; padding: 12px 16px; border-radius: var(--radius-md); }
-.chat-input button[type="submit"] { background: var(--accent); color: #fff; padding: 0 20px; border-radius: var(--radius-md); }
+.chat-input button[type="submit"] { background: var(--accent); color: #fff; padding: 0 20px; border-radius: var(--radius-md); box-shadow: var(--glow-accent); }
 .chat-input button[type="submit"]:hover:not(:disabled) { background: var(--accent-hover); }
 
 /* Autocomplete de @mencao - abre PRA CIMA (o input fica embaixo, colado na barra inferior). */
@@ -626,7 +653,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 /* Quando a secao de membros aparece na tela de "Entrar na call" (ainda fora do
    .voice-body), ela nao tem o padding/gap que as outras secoes ganham la dentro. */
 .voice-channel > .voice-section { margin: 0 24px 24px; }
-.voice-join button { background: var(--accent); color: #fff; padding: 12px 28px; font-size: 14.5px; border-radius: var(--radius-md); }
+.voice-join button { background: var(--accent); color: #fff; padding: 12px 28px; font-size: 14.5px; border-radius: var(--radius-md); box-shadow: var(--glow-accent); }
 .voice-join button:hover { background: var(--accent-hover); }
 .voice-controls { display: flex; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--border-soft); background: var(--bg-panel); }
 .voice-controls .danger { background: var(--danger-soft); color: var(--danger); }
@@ -647,9 +674,10 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .voice-section-header .voice-section-title { margin: 0; }
 .voice-section {
   background: var(--bg-panel);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 16px 18px;
+  box-shadow: var(--shadow-md);
 }
 .voice-section-title {
   font-size: 10.5px; font-weight: 700; color: var(--text-muted);
@@ -703,7 +731,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 }
 .voice-avatar {
   width: 30px; height: 30px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #4747c9);
+  background: linear-gradient(135deg, var(--accent), var(--intel));
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 11.5px; font-weight: 700; flex-shrink: 0;
@@ -938,8 +966,8 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   flex-direction: column;
   gap: 14px;
 }
-.modal h2 { margin: 0; font-size: 17px; font-weight: 700; }
-.modal button:not(.link-btn):not(.status-dropdown-trigger):not(.status-option) { background: var(--accent); color: #fff; width: 100%; padding: 11px; margin-top: 4px; }
+.modal h2 { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.modal button:not(.link-btn):not(.status-dropdown-trigger):not(.status-option) { background: var(--accent); color: #fff; width: 100%; padding: 11px; margin-top: 4px; box-shadow: var(--glow-accent); }
 .modal button:not(.link-btn):not(.status-dropdown-trigger):not(.status-option):hover { background: var(--accent-hover); }
 .modal button.danger { background: var(--danger-soft); color: var(--danger); }
 .modal button.danger:hover { background: var(--danger); color: #fff; }
@@ -999,7 +1027,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   display: flex; justify-content: space-between; align-items: center;
   padding: 18px 28px; border-bottom: 1px solid var(--border-soft); background: var(--bg-panel);
 }
-.admin-topbar strong { font-size: 16px; font-weight: 700; }
+.admin-topbar strong { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 .admin-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
   padding: 28px; max-width: 960px; margin: 0 auto;
@@ -1017,7 +1045,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .admin-card h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .admin-hint { color: var(--text-muted); font-size: 12.5px; margin: -6px 0 4px; line-height: 1.5; }
 .admin-success { color: var(--success); background: var(--success-soft); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; margin: 0; }
-.admin-card button[type="submit"] { background: var(--accent); color: #fff; margin-top: 4px; }
+.admin-card button[type="submit"] { background: var(--accent); color: #fff; margin-top: 4px; box-shadow: var(--glow-accent); }
 .admin-card button[type="submit"]:hover { background: var(--accent-hover); }
 .admin-badge {
   background: var(--accent-soft); color: var(--accent-text); font-size: 10.5px; font-weight: 700;
@@ -1045,7 +1073,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .profile-avatar-wrap { flex-shrink: 0; }
 .profile-avatar {
   width: 64px; height: 64px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #4747c9);
+  background: linear-gradient(135deg, var(--accent), var(--intel));
   color: #fff; display: flex; align-items: center; justify-content: center;
   font-size: 22px; font-weight: 700;
 }
