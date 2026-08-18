@@ -59,10 +59,23 @@ export function useUnreadMessages(textChannels, selectedChannelId, stompClient, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textChannels.map((c) => c.id).join(","), currentUsername]);
 
-  // Zera na hora ao abrir um canal (nao espera a proxima mensagem chegar pra sumir o numero).
+  // Zera na hora ao abrir um canal (nao espera a proxima mensagem chegar pra sumir o numero)
+  // E salva no localStorage ate' onde voce leu - sem isso o numero soh sumia da tela por
+  // enquanto (estado em memoria), mas voltava do mesmo jeito no proximo login/F5, porque o
+  // "ultimo lido" salvo nunca tinha sido atualizado de verdade.
   useEffect(() => {
     if (!selectedChannelId) return;
     setUnreadCounts((prev) => (prev[selectedChannelId] ? { ...prev, [selectedChannelId]: 0 } : prev));
+    let cancelled = false;
+    api.get(`/api/channels/${selectedChannelId}/messages`).then(({ data }) => {
+      if (cancelled) return;
+      const last = data[data.length - 1];
+      if (last) markRead(selectedChannelId, last.id);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannelId]);
 
   // Um WebSocket por canal de texto - assim sabe de mensagem nova mesmo em canal que voce
