@@ -36,4 +36,9 @@ public class Message {
 
     /** Preenchido quando o autor (ou o admin) edita a mensagem - null = nunca editada. */
     private Instant editedAt;
+
+    /** Preenchido quando essa mensagem e' uma resposta a outra - null = mensagem normal.
+     * Sem FK de proposito (mesmo padrao do resto do app, ver Membership/Server) - se a
+     * mensagem original for apagada depois, so' deixa de aparecer o preview dela na resposta. */
+    private Long replyToId;
 }

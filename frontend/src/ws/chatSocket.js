@@ -25,10 +25,10 @@ export function subscribeToChannel(client, channelId, onEvent) {
   });
 }
 
-export function sendChatMessage(client, channelId, content, imageUrl) {
+export function sendChatMessage(client, channelId, content, imageUrl, replyToId) {
   client.publish({
     destination: `/app/channel.${channelId}.send`,
-    body: JSON.stringify({ content: content || "", imageUrl: imageUrl || null }),
+    body: JSON.stringify({ content: content || "", imageUrl: imageUrl || null, replyToId: replyToId || null }),
   });
 }
 

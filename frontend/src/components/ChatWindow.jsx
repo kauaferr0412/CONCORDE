@@ -1,13 +1,40 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/client";
 import { subscribeToChannel, sendChatMessage, editChatMessage, deleteChatMessage } from "../ws/chatSocket";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useServerMembers } from "../utils/useServerMembers";
+import { applyMention, getMentionQuery, mentionsUser, splitMentions } from "../utils/mentions";
 import Avatar from "./Avatar.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
-import { CheckIcon, ImageIcon, PencilIcon, TrashIcon, XIcon } from "./icons.jsx";
+import { CheckIcon, ImageIcon, PencilIcon, ReplyIcon, TrashIcon, XIcon } from "./icons.jsx";
+
+/** @username -> vira um "pill" destacado (mais forte se for voce mesmo) - so reconhece
+    quem e' de verdade membro do servidor, o resto fica texto normal. */
+function MessageText({ content, memberUsernames, myUsername }) {
+  if (!content) return null;
+  return (
+    <p>
+      {splitMentions(content, memberUsernames).map((part, i) =>
+        part.mention ? (
+          <span
+            key={i}
+            className={"chat-mention" + (part.mention.toLowerCase() === myUsername?.toLowerCase() ? " me" : "")}
+          >
+            {part.text}
+          </span>
+        ) : (
+          <span key={i}>{part.text}</span>
+        )
+      )}
+    </p>
+  );
+}
 
 export default function ChatWindow({ channel, stompClient, stompConnected, stompError }) {
   const { user, isAdmin } = useAuth();
+  const members = useServerMembers(channel?.serverId, stompClient, stompConnected);
+  const memberUsernames = useMemo(() => members.map((m) => m.username), [members]);
+
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl } - aguardando confirmacao de envio
@@ -16,13 +43,24 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
   const [editingId, setEditingId] = useState(null);
   const [editingText, setEditingText] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [mentionQuery, setMentionQuery] = useState(null); // string | null - null = autocomplete fechado
+  const [mentionIndex, setMentionIndex] = useState(0);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const draftInputRef = useRef(null);
+  const messageRefs = useRef(new Map()); // messageId -> elemento na tela, pra "pular pra" no clique do reply
+
+  const mentionMatches = useMemo(() => {
+    if (mentionQuery === null) return [];
+    return members.filter((m) => m.username.toLowerCase().startsWith(mentionQuery.toLowerCase())).slice(0, 6);
+  }, [mentionQuery, members]);
 
   useEffect(() => {
     if (!channel) return;
     setMessages([]);
     setEditingId(null);
+    setReplyingTo(null);
     clearPendingImage();
     api.get(`/api/channels/${channel.id}/messages`).then(({ data }) => setMessages(data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,6 +120,51 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
     pickFile(imageItem.getAsFile());
   }
 
+  function handleDraftChange(e) {
+    const value = e.target.value;
+    setDraft(value);
+    const caret = e.target.selectionStart ?? value.length;
+    const query = getMentionQuery(value, caret);
+    setMentionQuery(query);
+    setMentionIndex(0);
+  }
+
+  function pickMention(username) {
+    const input = draftInputRef.current;
+    const caret = input?.selectionStart ?? draft.length;
+    const { text, caret: newCaret } = applyMention(draft, caret, username);
+    setDraft(text);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(newCaret, newCaret);
+    });
+  }
+
+  function handleDraftKeyDown(e) {
+    if (mentionQuery !== null && mentionMatches.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % mentionMatches.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + mentionMatches.length) % mentionMatches.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickMention(mentionMatches[mentionIndex].username);
+        return;
+      }
+      if (e.key === "Escape") {
+        setMentionQuery(null);
+        return;
+      }
+    }
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     if (!stompConnected || sending) return;
@@ -97,8 +180,9 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
         const { data } = await api.post(`/api/channels/${channel.id}/attachments`, formData);
         imageUrl = data.url;
       }
-      sendChatMessage(stompClient, channel.id, draft.trim(), imageUrl);
+      sendChatMessage(stompClient, channel.id, draft.trim(), imageUrl, replyingTo?.id);
       setDraft("");
+      setReplyingTo(null);
       clearPendingImage();
     } catch (err) {
       setUploadError(err.response?.data?.error || "Falha ao enviar imagem");
@@ -127,6 +211,19 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
     setEditingId(null);
   }
 
+  function startReply(m) {
+    setReplyingTo(m);
+    draftInputRef.current?.focus();
+  }
+
+  function jumpToMessage(id) {
+    const el = messageRefs.current.get(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("chat-message-flash");
+    setTimeout(() => el.classList.remove("chat-message-flash"), 1200);
+  }
+
   if (!channel) {
     return <div className="chat-window empty">Selecione um canal de texto</div>;
   }
@@ -142,7 +239,14 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
       {uploadError && <div className="chat-status error">⚠️ {uploadError}</div>}
       <div className="chat-messages">
         {messages.map((m) => (
-          <div key={m.id} className="chat-message">
+          <div
+            key={m.id}
+            ref={(el) => {
+              if (el) messageRefs.current.set(m.id, el);
+              else messageRefs.current.delete(m.id);
+            }}
+            className={"chat-message" + (mentionsUser(m.content, user?.username) ? " mentioned" : "")}
+          >
             <Avatar name={m.authorUsername} url={m.authorAvatarUrl} className="chat-avatar" />
             <div className="chat-message-body">
               <div>
@@ -150,6 +254,25 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
                 <span className="chat-time">{new Date(m.createdAt).toLocaleTimeString()}</span>
                 {m.editedAt && <span className="chat-edited">(editado)</span>}
               </div>
+
+              {m.replyToId && (
+                <button
+                  type="button"
+                  className={"chat-reply-preview" + (m.replyTo ? "" : " gone")}
+                  onClick={() => m.replyTo && jumpToMessage(m.replyTo.id)}
+                  disabled={!m.replyTo}
+                >
+                  <ReplyIcon size={12} />
+                  {m.replyTo ? (
+                    <>
+                      <strong>{m.replyTo.authorUsername}</strong>
+                      <span>{m.replyTo.content || (m.replyTo.imageUrl ? "🖼️ Imagem" : "")}</span>
+                    </>
+                  ) : (
+                    <span>Mensagem original removida</span>
+                  )}
+                </button>
+              )}
 
               {editingId === m.id ? (
                 <div className="chat-edit-row">
@@ -171,7 +294,7 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
                 </div>
               ) : (
                 <>
-                  {m.content && <p>{m.content}</p>}
+                  <MessageText content={m.content} memberUsernames={memberUsernames} myUsername={user?.username} />
                   {m.imageUrl && (
                     <a href={m.imageUrl} target="_blank" rel="noreferrer">
                       <img src={m.imageUrl} alt="Imagem enviada no chat" className="chat-image" />
@@ -181,14 +304,21 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
               )}
             </div>
 
-            {canModify(m) && editingId !== m.id && (
+            {editingId !== m.id && (
               <div className="chat-message-actions">
-                <button className="icon-btn" onClick={() => startEdit(m)} title="Editar mensagem">
-                  <PencilIcon size={15} />
+                <button className="icon-btn" onClick={() => startReply(m)} title="Responder">
+                  <ReplyIcon size={15} />
                 </button>
-                <button className="icon-btn icon-btn-danger" onClick={() => setDeleteTarget(m)} title="Apagar mensagem">
-                  <TrashIcon size={15} />
-                </button>
+                {canModify(m) && (
+                  <>
+                    <button className="icon-btn" onClick={() => startEdit(m)} title="Editar mensagem">
+                      <PencilIcon size={15} />
+                    </button>
+                    <button className="icon-btn icon-btn-danger" onClick={() => setDeleteTarget(m)} title="Apagar mensagem">
+                      <TrashIcon size={15} />
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -211,6 +341,19 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
         </div>
       )}
 
+      {replyingTo && (
+        <div className="chat-replying-bar">
+          <ReplyIcon size={13} />
+          <span>
+            Respondendo a <strong>{replyingTo.authorUsername}</strong>
+            {replyingTo.content ? `: ${truncate(replyingTo.content, 80)}` : replyingTo.imageUrl ? ": 🖼️ Imagem" : ""}
+          </span>
+          <button type="button" className="icon-btn" onClick={() => setReplyingTo(null)} title="Cancelar resposta">
+            <XIcon size={14} />
+          </button>
+        </div>
+      )}
+
       <form className="chat-input" onSubmit={handleSend}>
         <input
           type="file"
@@ -228,19 +371,41 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
         >
           <ImageIcon />
         </button>
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onPaste={handlePaste}
-          placeholder={
-            pendingImage
-              ? "Adicionar legenda (opcional)..."
-              : sending
-              ? "Enviando..."
-              : `Conversar em #${channel.name} (Ctrl+V cola imagem)`
-          }
-          disabled={!stompConnected || sending}
-        />
+        <div className="chat-input-field">
+          {mentionQuery !== null && mentionMatches.length > 0 && (
+            <div className="mention-menu">
+              {mentionMatches.map((m, i) => (
+                <button
+                  type="button"
+                  key={m.userId}
+                  className={"mention-option" + (i === mentionIndex ? " active" : "")}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // nao deixa o input perder foco antes do clique registrar
+                    pickMention(m.username);
+                  }}
+                >
+                  <Avatar name={m.username} url={m.avatarUrl} className="voice-avatar small" />
+                  {m.username}
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            ref={draftInputRef}
+            value={draft}
+            onChange={handleDraftChange}
+            onKeyDown={handleDraftKeyDown}
+            onPaste={handlePaste}
+            placeholder={
+              pendingImage
+                ? "Adicionar legenda (opcional)..."
+                : sending
+                ? "Enviando..."
+                : `Conversar em #${channel.name} (@ pra mencionar, Ctrl+V cola imagem)`
+            }
+            disabled={!stompConnected || sending}
+          />
+        </div>
         <button type="submit" disabled={!stompConnected || sending || (!draft.trim() && !pendingImage)}>
           Enviar
         </button>
@@ -258,4 +423,8 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
       )}
     </div>
   );
+}
+
+function truncate(text, max) {
+  return text.length > max ? text.slice(0, max) + "…" : text;
 }

@@ -4,8 +4,9 @@ import java.time.Instant;
 
 public class MessageDtos {
 
-    /** Enviado pelo cliente via STOMP em /app/channel.{channelId}.send - content ou imageUrl (ou os dois). */
-    public record OutgoingChatMessage(String content, String imageUrl) {}
+    /** Enviado pelo cliente via STOMP em /app/channel.{channelId}.send - content ou imageUrl (ou os
+     * dois), e opcionalmente replyToId se for uma resposta a outra mensagem desse canal. */
+    public record OutgoingChatMessage(String content, String imageUrl, Long replyToId) {}
 
     /** Enviado pelo cliente via STOMP em /app/channel.{channelId}.edit */
     public record EditChatMessage(Long messageId, String content) {}
@@ -13,9 +14,15 @@ public class MessageDtos {
     /** Enviado pelo cliente via STOMP em /app/channel.{channelId}.delete */
     public record DeleteChatMessage(Long messageId) {}
 
+    /** Resuminho da mensagem original, embutido em quem responde a ela - assim o cliente nao
+     * precisa buscar a mensagem original separada (e ainda funciona se ela for apagada depois,
+     * so' o preview some). */
+    public record ReplyPreview(Long id, String authorUsername, String authorAvatarUrl, String content, String imageUrl) {}
+
     /** Uma mensagem, retornada no historico (REST) e dentro dos eventos do WebSocket. */
     public record ChatMessage(Long id, Long channelId, Long authorId, String authorUsername, String authorAvatarUrl,
-                               String content, String imageUrl, Instant createdAt, Instant editedAt) {}
+                               String content, String imageUrl, Instant createdAt, Instant editedAt,
+                               Long replyToId, ReplyPreview replyTo) {}
 
     /**
      * O que realmente trafega em /topic/channel.{channelId}: um envelope com o tipo do evento,

@@ -463,6 +463,59 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 }
 .chat-edited { font-size: 11px; color: var(--text-muted); margin-left: 6px; font-style: italic; }
 
+/* Mencao (@username) dentro do texto - mais forte quando e' voce mesmo sendo mencionado. */
+.chat-mention {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+.chat-mention.me { background: var(--warning-soft); color: var(--warning); }
+/* A mensagem inteira ganha uma faixa sutil quando menciona voce - facil de achar na rolagem. */
+.chat-message.mentioned { background: var(--warning-soft); border-left: 2px solid var(--warning); padding-left: 8px; }
+.chat-message.mentioned:hover { background: var(--warning-soft); }
+
+/* Preview da mensagem original, mostrado em cima de quem respondeu a ela. */
+.chat-reply-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0 0 2px;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  max-width: 100%;
+}
+.chat-reply-preview:not(:disabled):hover { color: var(--text-secondary); }
+.chat-reply-preview:not(:disabled) { cursor: pointer; }
+.chat-reply-preview.gone { font-style: italic; }
+.chat-reply-preview strong { color: var(--text-secondary); font-weight: 600; flex-shrink: 0; }
+.chat-reply-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Flash breve quando "pula" pra mensagem original ao clicar no preview de resposta. */
+@keyframes chat-message-flash {
+  0%, 100% { background: transparent; }
+  30% { background: var(--accent-soft); }
+}
+.chat-message-flash { animation: chat-message-flash 1.1s ease; }
+
+/* Barra "Respondendo a X" acima do input, antes de enviar. */
+.chat-replying-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-soft);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.chat-replying-bar strong { color: var(--text-primary); }
+.chat-replying-bar .icon-btn { margin-left: auto; flex-shrink: 0; }
+
 /* Botoes de editar/apagar so aparecem ao passar o mouse na mensagem (padrao Discord/Slack) */
 .chat-message-actions {
   display: none;
@@ -497,9 +550,42 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 
 .chat-input { display: flex; align-items: center; gap: 8px; padding: 16px 20px 20px; }
 .chat-attach-btn { flex-shrink: 0; }
-.chat-input input { flex: 1; padding: 12px 16px; border-radius: var(--radius-md); }
+.chat-input-field { position: relative; flex: 1; min-width: 0; }
+.chat-input-field input { width: 100%; padding: 12px 16px; border-radius: var(--radius-md); }
 .chat-input button[type="submit"] { background: var(--accent); color: #fff; padding: 0 20px; border-radius: var(--radius-md); }
 .chat-input button[type="submit"]:hover:not(:disabled) { background: var(--accent-hover); }
+
+/* Autocomplete de @mencao - abre PRA CIMA (o input fica embaixo, colado na barra inferior). */
+.mention-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 7px 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+.mention-option:hover, .mention-option.active { background: var(--bg-hover); }
 .chat-status {
   padding: 8px 20px;
   font-size: 12.5px;

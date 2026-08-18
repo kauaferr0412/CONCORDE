@@ -33,7 +33,7 @@ public class ChatController {
     public void send(@DestinationVariable Long channelId, OutgoingChatMessage payload, Principal principal) {
         Long authorId = userId(principal);
         try {
-            ChatMessage saved = messageService.save(channelId, authorId, payload.content(), payload.imageUrl());
+            ChatMessage saved = messageService.save(channelId, authorId, payload.content(), payload.imageUrl(), payload.replyToId());
             broadcast(channelId, ChatEvent.created(saved));
         } catch (RuntimeException e) {
             System.err.println("Falha ao enviar mensagem no canal " + channelId + ": " + e.getMessage());

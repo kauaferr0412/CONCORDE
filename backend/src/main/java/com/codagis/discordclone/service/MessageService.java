@@ -4,6 +4,7 @@ import com.codagis.discordclone.domain.Message;
 import com.codagis.discordclone.domain.Role;
 import com.codagis.discordclone.domain.User;
 import com.codagis.discordclone.dto.MessageDtos.ChatMessage;
+import com.codagis.discordclone.dto.MessageDtos.ReplyPreview;
 import com.codagis.discordclone.repository.MessageRepository;
 import com.codagis.discordclone.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -25,17 +26,27 @@ public class MessageService {
     }
 
     @Transactional
-    public ChatMessage save(Long channelId, Long authorId, String content, String imageUrl) {
+    public ChatMessage save(Long channelId, Long authorId, String content, String imageUrl, Long replyToId) {
         boolean hasText = content != null && !content.isBlank();
         boolean hasImage = imageUrl != null && !imageUrl.isBlank();
         if (!hasText && !hasImage) {
             throw new IllegalArgumentException("Mensagem vazia - escreva algo ou anexe uma imagem");
+        }
+        // So aceita responder a uma mensagem que existe DE VERDADE nesse mesmo canal - evita
+        // referenciar mensagem de outro canal ou um id inventado.
+        Long validReplyToId = null;
+        if (replyToId != null) {
+            validReplyToId = messageRepository.findById(replyToId)
+                    .filter(m -> m.getChannelId().equals(channelId))
+                    .map(Message::getId)
+                    .orElse(null);
         }
         Message saved = messageRepository.save(Message.builder()
                 .channelId(channelId)
                 .authorId(authorId)
                 .content(hasText ? content : "")
                 .imageUrl(hasImage ? imageUrl : null)
+                .replyToId(validReplyToId)
                 .build());
         return toDto(saved);
     }
@@ -91,7 +102,18 @@ public class MessageService {
         User author = userRepository.findById(m.getAuthorId()).orElse(null);
         String username = author != null ? author.getUsername() : "desconhecido";
         String avatarUrl = author != null ? author.getAvatarUrl() : null;
+        ReplyPreview replyTo = m.getReplyToId() != null ? buildReplyPreview(m.getReplyToId()) : null;
         return new ChatMessage(m.getId(), m.getChannelId(), m.getAuthorId(), username, avatarUrl, m.getContent(),
-                m.getImageUrl(), m.getCreatedAt(), m.getEditedAt());
+                m.getImageUrl(), m.getCreatedAt(), m.getEditedAt(), m.getReplyToId(), replyTo);
+    }
+
+    /** null quando a mensagem original ja foi apagada - o cliente mostra "mensagem removida". */
+    private ReplyPreview buildReplyPreview(Long originalId) {
+        return messageRepository.findById(originalId).map(original -> {
+            User originalAuthor = userRepository.findById(original.getAuthorId()).orElse(null);
+            String originalUsername = originalAuthor != null ? originalAuthor.getUsername() : "desconhecido";
+            String originalAvatarUrl = originalAuthor != null ? originalAuthor.getAvatarUrl() : null;
+            return new ReplyPreview(original.getId(), originalUsername, originalAvatarUrl, original.getContent(), original.getImageUrl());
+        }).orElse(null);
     }
 }
