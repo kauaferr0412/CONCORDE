@@ -11,7 +11,8 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  // sessionStorage (isolado por aba) - ver AuthContext.jsx pro motivo de nao ser localStorage.
+  const token = sessionStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
