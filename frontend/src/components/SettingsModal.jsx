@@ -23,15 +23,7 @@ import { playJoinSound } from "../utils/soundEffects";
 import { useAuth } from "../context/AuthContext.jsx";
 import api from "../api/client";
 import Avatar from "./Avatar.jsx";
-
-/** Mesmos 4 status do Discord - "Invisível" nunca aparece como tal pros outros, so' como offline
-    (ver PresenceStatus.java no backend). O proprio usuario sempre ve seu status real aqui. */
-const STATUS_OPTIONS = [
-  { value: "ONLINE", label: "Online", hint: "Aparece disponível pros outros", dotClass: "online" },
-  { value: "AWAY", label: "Ausente", hint: "Aparece com um ícone de ausente", dotClass: "away" },
-  { value: "DND", label: "Não perturbe", hint: "Aparece com um ícone vermelho", dotClass: "dnd" },
-  { value: "INVISIBLE", label: "Invisível", hint: "Aparece offline pra todo mundo, mas continua usando o app normalmente", dotClass: "offline" },
-];
+import StatusDropdown from "./StatusDropdown.jsx";
 
 /** Campo de "gravar atalho": clica em Alterar, aperta a combinacao desejada, pronto. */
 function ShortcutRecorder({ value, onChange }) {
@@ -229,23 +221,7 @@ export default function SettingsModal({ onClose }) {
         <div className="settings-divider" />
 
         <p className="settings-section-title">Status</p>
-        <div className="status-picker">
-          {STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={"status-option" + (user?.status === opt.value ? " active" : "")}
-              onClick={() => handleStatusChange(opt.value)}
-              disabled={visibilitySaving}
-            >
-              <span className={"status-dot " + opt.dotClass} />
-              <span>
-                <strong>{opt.label}</strong>
-                <small>{opt.hint}</small>
-              </span>
-            </button>
-          ))}
-        </div>
+        <StatusDropdown value={user?.status || "ONLINE"} onChange={handleStatusChange} disabled={visibilitySaving} />
         {visibilityError && <p className="auth-error">{visibilityError}</p>}
 
         <div className="settings-divider" />

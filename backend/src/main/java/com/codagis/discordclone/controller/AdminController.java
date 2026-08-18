@@ -1,6 +1,7 @@
 package com.codagis.discordclone.controller;
 
 import com.codagis.discordclone.dto.AdminDtos.GrantAccessRequest;
+import com.codagis.discordclone.dto.AdminDtos.UpdateUserRequest;
 import com.codagis.discordclone.dto.AuthDtos.CreateUserRequest;
 import com.codagis.discordclone.dto.AuthDtos.UserResponse;
 import com.codagis.discordclone.security.CurrentUser;
@@ -36,6 +37,18 @@ public class AdminController {
     @GetMapping("/users")
     public List<UserResponse> listUsers() {
         return authService.listUsersAsAdmin(currentUser.id());
+    }
+
+    /** Edita username/email/role/senha de uma conta. */
+    @PutMapping("/users/{userId}")
+    public UserResponse updateUser(@PathVariable Long userId, @Valid @RequestBody UpdateUserRequest req) {
+        return authService.updateUserAsAdmin(currentUser.id(), userId, req);
+    }
+
+    /** Exclui uma conta (e as associações de servidor dela). */
+    @DeleteMapping("/users/{userId}")
+    public void deleteUser(@PathVariable Long userId) {
+        authService.deleteUserAsAdmin(currentUser.id(), userId);
     }
 
     /** Libera o acesso de um usuario a um servidor (equivalente a "aceitar convite", mas direto). */

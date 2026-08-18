@@ -3,15 +3,21 @@ import { Link, Navigate } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
 import Avatar from "../components/Avatar.jsx";
+import EditUserModal from "../components/EditUserModal.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
+import { PencilIcon, TrashIcon } from "../components/icons.jsx";
 
 /**
  * Painel do ADMIN: criar contas de usuario (nao existe cadastro publico) e
  * liberar o acesso de um usuario a um servidor especifico.
  */
 export default function AdminPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [servers, setServers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const [newUsername, setNewUsername] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -54,6 +60,21 @@ export default function AdminPage() {
       reloadUsers();
     } catch (err) {
       setCreateError(err.response?.data?.error || "Falha ao criar usuário");
+    }
+  }
+
+  function handleUserSaved(updated) {
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingUser) return;
+    setDeleteError("");
+    try {
+      await api.delete(`/api/admin/users/${deletingUser.id}`);
+      setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || "Falha ao excluir usuário");
     }
   }
 
@@ -122,6 +143,7 @@ export default function AdminPage() {
 
         <div className="admin-card admin-card-wide">
           <h2>Usuários</h2>
+          {deleteError && <p className="auth-error">{deleteError}</p>}
           <table className="admin-table">
             <thead>
               <tr>
@@ -129,6 +151,7 @@ export default function AdminPage() {
                 <th>Usuário</th>
                 <th>Email</th>
                 <th>Cargo</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -140,12 +163,44 @@ export default function AdminPage() {
                   <td>{u.username}</td>
                   <td>{u.email}</td>
                   <td>{u.role === "ADMIN" ? "Administrador" : "Usuário"}</td>
+                  <td className="admin-table-actions">
+                    <button type="button" className="icon-btn" title="Editar usuário" onClick={() => setEditingUser(u)}>
+                      <PencilIcon size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn-danger"
+                      title={u.id === currentUser?.id ? "Você não pode excluir sua própria conta" : "Excluir usuário"}
+                      disabled={u.id === currentUser?.id}
+                      onClick={() => {
+                        setDeleteError("");
+                        setDeletingUser(u);
+                      }}
+                    >
+                      <TrashIcon size={15} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {editingUser && (
+        <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSaved={handleUserSaved} />
+      )}
+
+      {deletingUser && (
+        <ConfirmModal
+          title="Excluir usuário"
+          message={`Tem certeza que quer excluir "${deletingUser.username}"? A conta e o acesso dela aos servidores serão removidos - não dá pra desfazer.`}
+          confirmLabel="Excluir"
+          danger
+          onClose={() => setDeletingUser(null)}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
     </div>
   );
 }
