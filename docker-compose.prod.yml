@@ -46,6 +46,13 @@ services:
       PUBLIC_ORIGIN: https://${DOMAIN}
       GCS_CREDENTIALS_JSON: ${GCS_CREDENTIALS_JSON:-}
       GCS_BUCKET: ${GCS_BUCKET:-}
+    # DNS publico explicito - em algumas VPS o /etc/resolv.conf do host aponta pro
+    # stub do systemd-resolved (127.0.0.53), que os containers nao conseguem alcancar,
+    # e qualquer chamada de rede pra fora (aqui, a API do Google Cloud Storage) falha
+    # com "connection refused" na resolucao de DNS.
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - postgres
       - livekit
@@ -55,6 +62,9 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN}
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "80:80" # necessario pro Caddy validar e renovar o certificado HTTPS sozinho
       - "443:443"
