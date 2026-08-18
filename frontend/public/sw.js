@@ -2,7 +2,7 @@
 // Chrome/Edge (exige um SW com "fetch" registrado pra mostrar o botao "Instalar app").
 // Nao faz cache agressivo de nada: sempre busca da rede primeiro, porque o chat/voz
 // precisa de dados sempre atualizados (nao seria certo servir mensagem antiga do cache).
-const CACHE = "concorde-shell-v2";
+const CACHE = "concorde-shell-v3";
 const SHELL = [
   "/",
   "/manifest.json",
