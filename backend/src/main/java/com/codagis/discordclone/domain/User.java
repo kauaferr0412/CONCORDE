@@ -2,6 +2,7 @@ package com.codagis.discordclone.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
 
@@ -40,8 +41,12 @@ public class User {
 
     // Status que o proprio usuario escolhe (Online/Ausente/Nao perturbe/Invisivel) -
     // ver OnlinePresenceService pra como isso vira o que os OUTROS enxergam.
+    // @ColumnDefault e' essencial aqui: como essa coluna e' nova e a tabela "users" ja tem
+    // gente cadastrada em producao, o Postgres recusa um ALTER TABLE ADD COLUMN NOT NULL
+    // sem um DEFAULT (nao tem como preencher as linhas que ja existem sem isso).
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
+    @ColumnDefault("'ONLINE'")
     @Builder.Default
     private UserStatus status = UserStatus.ONLINE;
 
