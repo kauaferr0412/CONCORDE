@@ -1,24 +1,35 @@
 # {$DOMAIN} vem da variavel de ambiente DOMAIN do docker-compose.prod.yml (ex:
-# 203-0-113-7.sslip.io). Com um dominio de verdade na frente, o Caddy busca certificado
+# 187-127-37-101.sslip.io). Com um dominio de verdade na frente, o Caddy busca certificado
 # HTTPS sozinho no Let's Encrypt (por isso as portas 80 e 443 do compose ficam abertas).
 {$DOMAIN} {
 	encode gzip
 
+	# "handle" e' avaliado na ordem escrita aqui (ao contrario de reverse_proxy/file_server
+	# soltos, que o Caddy reordena sozinho pela prioridade padrao dele - e ai o file_server
+	# roda ANTES do reverse_proxy e responde 405 pra qualquer POST/PUT antes de chegar no
+	# backend). Com "handle" a gente garante que API/WS/LiveKit sao checados primeiro, e so'
+	# cai no arquivo estatico se nao for nenhum desses.
+
 	# API REST e WebSocket STOMP do backend (mesma logica do proxy do Vite em dev).
-	@api path /api/*
-	@ws  path /ws*
-	reverse_proxy @api backend:8080
-	reverse_proxy @ws  backend:8080
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+	handle /ws* {
+		reverse_proxy backend:8080
+	}
 
 	# Sinalizacao do LiveKit (WebSocket). A midia (audio/video em si) NAO passa por aqui -
 	# ela vai direto entre o navegador e o container do livekit pelas portas UDP expostas
 	# no host (ver docker-compose.prod.yml), sem passar pelo Caddy.
-	@rtc path /rtc*
-	reverse_proxy @rtc livekit:7880
+	handle /rtc* {
+		reverse_proxy livekit:7880
+	}
 
 	# Frontend estatico (React/Vite), com fallback de SPA (rotas do react-router
-	# recarregando a pagina caem tudo em index.html).
-	root * /srv
-	try_files {path} /index.html
-	file_server
+	# recarregando a pagina caem tudo em index.html). Catch-all - so' roda se nada acima bateu.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
 }
