@@ -1,0 +1,24 @@
+# {$DOMAIN} vem da variavel de ambiente DOMAIN do docker-compose.prod.yml (ex:
+# 203-0-113-7.sslip.io). Com um dominio de verdade na frente, o Caddy busca certificado
+# HTTPS sozinho no Let's Encrypt (por isso as portas 80 e 443 do compose ficam abertas).
+{$DOMAIN} {
+	encode gzip
+
+	# API REST e WebSocket STOMP do backend (mesma logica do proxy do Vite em dev).
+	@api path /api/*
+	@ws  path /ws*
+	reverse_proxy @api backend:8080
+	reverse_proxy @ws  backend:8080
+
+	# Sinalizacao do LiveKit (WebSocket). A midia (audio/video em si) NAO passa por aqui -
+	# ela vai direto entre o navegador e o container do livekit pelas portas UDP expostas
+	# no host (ver docker-compose.prod.yml), sem passar pelo Caddy.
+	@rtc path /rtc*
+	reverse_proxy @rtc livekit:7880
+
+	# Frontend estatico (React/Vite), com fallback de SPA (rotas do react-router
+	# recarregando a pagina caem tudo em index.html).
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

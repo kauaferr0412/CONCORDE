@@ -1,0 +1,267 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useVoiceCall } from "../context/VoiceCallContext.jsx";
+import api from "../api/client";
+import { subscribeToVoicePresence } from "../ws/chatSocket";
+import {
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  HeadphonesIcon,
+  HeadphonesOffIcon,
+  LogOutIcon,
+  MicIcon,
+  MicOffIcon,
+  PhoneOffIcon,
+  ScreenShareIcon,
+  SettingsIcon,
+  ShieldIcon,
+} from "./icons.jsx";
+import Avatar from "./Avatar.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
+
+export default function ChannelSidebar({
+  server,
+  channels,
+  selectedChannelId,
+  onSelectChannel,
+  onCreateChannel,
+  onOpenSettings,
+  stompClient,
+  stompConnected,
+  user,
+  onLogout,
+}) {
+  const { isAdmin } = useAuth();
+  const { activeChannel, micEnabled, deafened, screenSharing, toggleMic, toggleDeafen, toggleScreenShare, leaveChannel } =
+    useVoiceCall();
+  const textChannels = channels.filter((c) => c.type === "TEXT");
+  const voiceChannels = channels.filter((c) => c.type === "VOICE");
+  const [connectedExpanded, setConnectedExpanded] = useState(true);
+  const [textExpanded, setTextExpanded] = useState(true);
+  const [voiceExpanded, setVoiceExpanded] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // Painel inteiro (canais, call, icones) pode recolher pra dar mais espaco pro chat -
+  // fica lembrado entre sessoes.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("channelSidebarCollapsed") === "true");
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("channelSidebarCollapsed", String(next));
+      return next;
+    });
+  }
+
+  async function handleConfirmLogout() {
+    if (activeChannel) await leaveChannel();
+    onLogout();
+  }
+
+  // "Quem esta conectado" e' visivel pra qualquer membro do servidor, mesmo sem ter
+  // entrado na call - diferente do indicador de "quem esta falando", que so aparece
+  // dentro da propria call (ver VoiceChannel.jsx).
+  const [presenceByChannel, setPresenceByChannel] = useState({});
+
+  useEffect(() => {
+    if (voiceChannels.length === 0) return;
+    let cancelled = false;
+
+    voiceChannels.forEach((c) => {
+      api.get(`/api/channels/${c.id}/voice-presence`).then(({ data }) => {
+        if (!cancelled) setPresenceByChannel((prev) => ({ ...prev, [c.id]: data }));
+      });
+    });
+
+    const subs = [];
+    if (stompClient && stompConnected) {
+      voiceChannels.forEach((c) => {
+        subs.push(
+          subscribeToVoicePresence(stompClient, c.id, (list) => {
+            setPresenceByChannel((prev) => ({ ...prev, [c.id]: list }));
+          })
+        );
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      subs.forEach((s) => s.unsubscribe());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server?.id, stompClient, stompConnected, voiceChannels.map((c) => c.id).join(",")]);
+
+  const connectedList = voiceChannels.flatMap((c) => (presenceByChannel[c.id] || []).map((p) => ({ ...p, channelName: c.name })));
+
+  return (
+    <div className={"channel-sidebar" + (collapsed ? " collapsed" : "")}>
+      <div className="channel-sidebar-header">
+        {!collapsed && <strong>{server?.name || "Selecione um servidor"}</strong>}
+        <button
+          className="icon-btn collapse-toggle"
+          onClick={toggleCollapsed}
+          title={collapsed ? "Abrir menu de canais" : "Fechar menu de canais"}
+        >
+          {collapsed ? <ChevronsRightIcon /> : <ChevronsLeftIcon />}
+        </button>
+      </div>
+
+      <div className="channel-sidebar-body">
+      {server && connectedList.length > 0 && (
+        <div className="connected-block">
+          <button className="connected-block-header" onClick={() => setConnectedExpanded((v) => !v)}>
+            <span className={"connected-chevron" + (connectedExpanded ? " open" : "")}>▸</span>
+            <span className="channel-group-title">CONECTADOS AGORA — {connectedList.length}</span>
+          </button>
+          {connectedExpanded && (
+            <div className="connected-list">
+              {connectedList.map((p) => (
+                <div key={p.userId} className="connected-user">
+                  <Avatar name={p.username} url={p.avatarUrl} className="voice-avatar small" />
+                  <span className="connected-user-name">{p.username}</span>
+                  <span className="connected-user-channel">🔊 {p.channelName}</span>
+                  {p.deafened ? (
+                    <HeadphonesOffIcon size={13} className="voice-status-icon" />
+                  ) : (
+                    !p.micEnabled && <MicOffIcon size={13} className="voice-status-icon danger" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="channel-list">
+        {!server ? (
+          <p className="channel-group-title">
+            {isAdmin
+              ? "Crie ou selecione um servidor na barra à esquerda para ver os canais."
+              : "Nenhum servidor liberado para você ainda. Peça acesso ao administrador."}
+          </p>
+        ) : (
+          <>
+            <button className="channel-category-header" onClick={() => setTextExpanded((v) => !v)}>
+              <span className={"connected-chevron" + (textExpanded ? " open" : "")}>▸</span>
+              <span className="channel-group-title">CANAIS DE TEXTO</span>
+            </button>
+            {textExpanded && (
+              <>
+                {textChannels.map((c) => (
+                  <button
+                    key={c.id}
+                    className={"channel-item" + (c.id === selectedChannelId ? " active" : "")}
+                    onClick={() => onSelectChannel(c)}
+                  >
+                    # {c.name}
+                  </button>
+                ))}
+                <button className="channel-item add" onClick={() => onCreateChannel("TEXT")}>
+                  + canal de texto
+                </button>
+              </>
+            )}
+
+            <button className="channel-category-header" onClick={() => setVoiceExpanded((v) => !v)}>
+              <span className={"connected-chevron" + (voiceExpanded ? " open" : "")}>▸</span>
+              <span className="channel-group-title">CANAIS DE VOZ</span>
+            </button>
+            {voiceExpanded && (
+              <>
+                {voiceChannels.map((c) => (
+                  <button
+                    key={c.id}
+                    className={"channel-item" + (c.id === selectedChannelId ? " active" : "")}
+                    onClick={() => onSelectChannel(c)}
+                  >
+                    🔊 {c.name}
+                    {activeChannel?.id === c.id && <span className="channel-item-live"> · conectado</span>}
+                  </button>
+                ))}
+                <button className="channel-item add" onClick={() => onCreateChannel("VOICE")}>
+                  + canal de voz
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Barra de status de voz - so aparece quando conectado, fica presente mesmo
+          navegando por outros canais (a call continua ativa em segundo plano). */}
+      {activeChannel && (
+        <div className="voice-status-bar">
+          <div className="voice-status-info">
+            <span className="voice-status-dot" />
+            <span className="voice-status-channel" title={`Conectado a #${activeChannel.name}`}>
+              {activeChannel.name}
+            </span>
+          </div>
+          <div className="voice-status-icons">
+            <button
+              className={"icon-btn" + (!micEnabled ? " icon-btn-danger" : "")}
+              onClick={toggleMic}
+              title={micEnabled ? "Mutar microfone" : "Desmutar microfone"}
+            >
+              {micEnabled ? <MicIcon /> : <MicOffIcon />}
+            </button>
+            <button
+              className={"icon-btn" + (deafened ? " icon-btn-danger" : "")}
+              onClick={toggleDeafen}
+              title={deafened ? "Reativar áudio" : "Ensurdecer (não ouvir ninguém)"}
+            >
+              {deafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
+            </button>
+            <button
+              className={"icon-btn" + (screenSharing ? " icon-btn-active" : "")}
+              onClick={toggleScreenShare}
+              title={screenSharing ? "Parar compartilhamento" : "Compartilhar tela (com áudio)"}
+            >
+              <ScreenShareIcon />
+            </button>
+            <button className="icon-btn icon-btn-danger" onClick={leaveChannel} title="Sair da call">
+              <PhoneOffIcon />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="user-bar">
+        <div className="user-bar-info">
+          <Avatar name={user?.username} url={user?.avatarUrl} className="user-bar-avatar" />
+          <span className="user-bar-name">{user?.username}</span>
+          {isAdmin && <span className="admin-badge">admin</span>}
+        </div>
+        <div className="user-bar-actions">
+          {isAdmin && (
+            <Link to="/admin" className="icon-btn" title="Painel do administrador">
+              <ShieldIcon />
+            </Link>
+          )}
+          <button className="icon-btn" onClick={onOpenSettings} title="Configurações de áudio">
+            <SettingsIcon />
+          </button>
+          <button className="icon-btn icon-btn-danger" onClick={() => setShowLogoutConfirm(true)} title="Sair da conta">
+            <LogOutIcon />
+          </button>
+        </div>
+      </div>
+      </div>
+
+      {showLogoutConfirm && (
+        <ConfirmModal
+          title="Sair da conta"
+          message={
+            activeChannel
+              ? "Você está numa call de voz agora - sair da conta também vai te desconectar dela. Tem certeza?"
+              : "Tem certeza que quer sair da sua conta?"
+          }
+          confirmLabel="Sair"
+          danger
+          onClose={() => setShowLogoutConfirm(false)}
+          onConfirm={handleConfirmLogout}
+        />
+      )}
+    </div>
+  );
+}

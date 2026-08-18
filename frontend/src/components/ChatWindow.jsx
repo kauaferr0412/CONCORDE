@@ -1,0 +1,261 @@
+import { useEffect, useRef, useState } from "react";
+import api from "../api/client";
+import { subscribeToChannel, sendChatMessage, editChatMessage, deleteChatMessage } from "../ws/chatSocket";
+import { useAuth } from "../context/AuthContext.jsx";
+import Avatar from "./Avatar.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
+import { CheckIcon, ImageIcon, PencilIcon, TrashIcon, XIcon } from "./icons.jsx";
+
+export default function ChatWindow({ channel, stompClient, stompConnected, stompError }) {
+  const { user, isAdmin } = useAuth();
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl } - aguardando confirmacao de envio
+  const [sending, setSending] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!channel) return;
+    setMessages([]);
+    setEditingId(null);
+    clearPendingImage();
+    api.get(`/api/channels/${channel.id}/messages`).then(({ data }) => setMessages(data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel]);
+
+  useEffect(() => {
+    if (!channel || !stompClient || !stompConnected) return;
+    const sub = subscribeToChannel(stompClient, channel.id, (event) => {
+      if (event.type === "CREATED") {
+        setMessages((prev) => [...prev, event.message]);
+      } else if (event.type === "UPDATED") {
+        setMessages((prev) => prev.map((m) => (m.id === event.message.id ? event.message : m)));
+      } else if (event.type === "DELETED") {
+        setMessages((prev) => prev.filter((m) => m.id !== event.messageId));
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [channel, stompClient, stompConnected]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    // Libera a memoria do preview quando o componente desmonta ou a imagem pendente muda
+    return () => {
+      if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    };
+  }, [pendingImage]);
+
+  function clearPendingImage() {
+    setPendingImage((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+  }
+
+  function pickFile(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    clearPendingImage();
+    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+  }
+
+  function handlePickImage(e) {
+    pickFile(e.target.files?.[0]);
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
+  }
+
+  // Ctrl+V com uma imagem na area de transferencia so prepara o preview - o envio de
+  // verdade so acontece quando o usuario confirma (Enviar ou Enter), igual anexar arquivo.
+  function handlePaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageItem = [...items].find((it) => it.type.startsWith("image/"));
+    if (!imageItem) return; // deixa o paste normal (texto) acontecer
+    e.preventDefault();
+    pickFile(imageItem.getAsFile());
+  }
+
+  async function handleSend(e) {
+    e.preventDefault();
+    if (!stompConnected || sending) return;
+    if (!draft.trim() && !pendingImage) return;
+
+    setUploadError("");
+    setSending(true);
+    try {
+      let imageUrl = null;
+      if (pendingImage) {
+        const formData = new FormData();
+        formData.append("file", pendingImage.file);
+        const { data } = await api.post(`/api/channels/${channel.id}/attachments`, formData);
+        imageUrl = data.url;
+      }
+      sendChatMessage(stompClient, channel.id, draft.trim(), imageUrl);
+      setDraft("");
+      clearPendingImage();
+    } catch (err) {
+      setUploadError(err.response?.data?.error || "Falha ao enviar imagem");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function canModify(m) {
+    return isAdmin || m.authorId === user?.id;
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditingText(m.content);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingText("");
+  }
+
+  function saveEdit(m) {
+    if (!editingText.trim()) return;
+    editChatMessage(stompClient, channel.id, m.id, editingText.trim());
+    setEditingId(null);
+  }
+
+  if (!channel) {
+    return <div className="chat-window empty">Selecione um canal de texto</div>;
+  }
+
+  return (
+    <div className="chat-window">
+      <div className="chat-header"># {channel.name}</div>
+      {stompError ? (
+        <div className="chat-status error">⚠️ {stompError}</div>
+      ) : !stompConnected ? (
+        <div className="chat-status">Conectando ao chat em tempo real...</div>
+      ) : null}
+      {uploadError && <div className="chat-status error">⚠️ {uploadError}</div>}
+      <div className="chat-messages">
+        {messages.map((m) => (
+          <div key={m.id} className="chat-message">
+            <Avatar name={m.authorUsername} url={m.authorAvatarUrl} className="chat-avatar" />
+            <div className="chat-message-body">
+              <div>
+                <span className="chat-author">{m.authorUsername}</span>
+                <span className="chat-time">{new Date(m.createdAt).toLocaleTimeString()}</span>
+                {m.editedAt && <span className="chat-edited">(editado)</span>}
+              </div>
+
+              {editingId === m.id ? (
+                <div className="chat-edit-row">
+                  <input
+                    autoFocus
+                    value={editingText}
+                    onChange={(e) => setEditingText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveEdit(m);
+                      if (e.key === "Escape") cancelEdit();
+                    }}
+                  />
+                  <button className="icon-btn" onClick={() => saveEdit(m)} title="Salvar">
+                    <CheckIcon />
+                  </button>
+                  <button className="icon-btn" onClick={cancelEdit} title="Cancelar">
+                    <XIcon />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {m.content && <p>{m.content}</p>}
+                  {m.imageUrl && (
+                    <a href={m.imageUrl} target="_blank" rel="noreferrer">
+                      <img src={m.imageUrl} alt="Imagem enviada no chat" className="chat-image" />
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
+
+            {canModify(m) && editingId !== m.id && (
+              <div className="chat-message-actions">
+                <button className="icon-btn" onClick={() => startEdit(m)} title="Editar mensagem">
+                  <PencilIcon size={15} />
+                </button>
+                <button className="icon-btn icon-btn-danger" onClick={() => setDeleteTarget(m)} title="Apagar mensagem">
+                  <TrashIcon size={15} />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {pendingImage && (
+        <div className="chat-pending-attachment">
+          <img src={pendingImage.previewUrl} alt="Pré-visualização da imagem" />
+          <div>
+            <strong>Enviar esta imagem?</strong>
+            <p className="admin-hint" style={{ margin: "2px 0 0" }}>
+              {pendingImage.file.name} — pode escrever uma legenda abaixo antes de enviar.
+            </p>
+          </div>
+          <button className="icon-btn icon-btn-danger" onClick={clearPendingImage} title="Cancelar imagem" disabled={sending}>
+            <XIcon />
+          </button>
+        </div>
+      )}
+
+      <form className="chat-input" onSubmit={handleSend}>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          ref={fileInputRef}
+          onChange={handlePickImage}
+          hidden
+        />
+        <button
+          type="button"
+          className="icon-btn chat-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={!stompConnected || sending}
+          title="Enviar imagem"
+        >
+          <ImageIcon />
+        </button>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onPaste={handlePaste}
+          placeholder={
+            pendingImage
+              ? "Adicionar legenda (opcional)..."
+              : sending
+              ? "Enviando..."
+              : `Conversar em #${channel.name} (Ctrl+V cola imagem)`
+          }
+          disabled={!stompConnected || sending}
+        />
+        <button type="submit" disabled={!stompConnected || sending || (!draft.trim() && !pendingImage)}>
+          Enviar
+        </button>
+      </form>
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Apagar mensagem"
+          message="Essa ação não pode ser desfeita. Tem certeza que quer apagar esta mensagem?"
+          confirmLabel="Apagar"
+          danger
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => deleteChatMessage(stompClient, channel.id, deleteTarget.id)}
+        />
+      )}
+    </div>
+  );
+}

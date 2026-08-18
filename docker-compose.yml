@@ -1,0 +1,19 @@
+services:
+  # Servidor de voz/video/compartilhamento de tela (SFU WebRTC).
+  # As mesmas api-key/api-secret precisam bater com backend/src/main/resources/application.yml
+  livekit:
+    image: livekit/livekit-server:latest
+    # --node-ip e' essencial no Docker Desktop (Windows/Mac): sem isso o LiveKit anuncia
+    # o IP interno do container para o WebRTC (ICE), que o navegador nao consegue alcancar,
+    # e a call falha com "could not establish pc connection".
+    # Usamos o IP real da maquina na rede local (nao 127.0.0.1) porque o Firefox descarta
+    # candidatos ICE loopback por padrao. Confira o IP atual com "ipconfig" -> adaptador
+    # Wi-Fi/Ethernet ativo, e troque aqui (e' o mesmo valor de app.livekit.ws-url no backend).
+    command: --dev --bind 0.0.0.0 --node-ip=192.168.1.8
+    ports:
+      - "7880:7880" # sinalizacao (WebSocket)
+      - "7881:7881" # TCP fallback
+      - "7882:7882/udp" # midia (RTP/WebRTC) - porta unica usada pelo modo --dev
+      - "50000-50100:50000-50100/udp" # faixa alternativa, mantida por seguranca/compatibilidade
+    environment:
+      LIVEKIT_KEYS: "devkey: devsecret1234567890devsecret1234567890"

@@ -1,0 +1,25 @@
+{
+  "name": "concorde-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "electron electron/main.cjs"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.0.0",
+    "axios": "^1.7.7",
+    "livekit-client": "^2.5.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^32.1.2",
+    "vite": "^5.4.8"
+  }
+}
