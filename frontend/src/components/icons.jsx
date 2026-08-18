@@ -185,6 +185,36 @@ export function ChevronsLeftIcon(props) {
   );
 }
 
+export function VolumeIcon(props) {
+  return (
+    <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>
+      <polygon points="4 9 8 9 12 5 12 19 8 15 4 15 4 9" />
+      <path d="M16.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M19 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  );
+}
+
+export function EyeIcon(props) {
+  return (
+    <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>
+      <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon(props) {
+  return (
+    <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>
+      <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c7 0 10.5 7 10.5 7a13.2 13.2 0 0 1-3 3.9" />
+      <path d="M6.3 6.7C3.4 8.6 1.5 12 1.5 12s3.5 7 10.5 7a10.4 10.4 0 0 0 4.4-.9" />
+      <path d="M9.5 10a3 3 0 0 0 4.2 4.2" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  );
+}
+
 export function ChevronsRightIcon(props) {
   return (
     <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>

@@ -1,7 +1,28 @@
 import { useEffect, useRef } from "react";
 import { useVoiceCall } from "../context/VoiceCallContext.jsx";
-import { HeadphonesOffIcon, MaximizeIcon, MicOffIcon } from "./icons.jsx";
+import { EyeIcon, EyeOffIcon, HeadphonesOffIcon, MaximizeIcon, MicOffIcon, VolumeIcon } from "./icons.jsx";
 import Avatar from "./Avatar.jsx";
+
+/** Slider de volume 0-200% (o Discord/navegador so vai ate 100% - aqui passa disso via
+    Web Audio, ver webAudioMix em VoiceCallContext.jsx). Reaproveitado pra voz e transmissão. */
+function VolumeSlider({ value, onChange, label }) {
+  return (
+    <div className="volume-slider-row" title={label}>
+      <VolumeIcon size={13} className="voice-status-icon" />
+      <input
+        type="range"
+        min={0}
+        max={200}
+        step={5}
+        value={value}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={"volume-slider" + (value > 100 ? " boosted" : "")}
+      />
+      <span className="volume-slider-value">{value}%</span>
+    </div>
+  );
+}
 
 /**
  * Vista de UM canal de voz. A conexao em si (LiveKit) vive no VoiceCallContext, entao
@@ -19,12 +40,18 @@ export default function VoiceChannel({ channel }) {
     screenShares,
     selectedScreenShareSid,
     selectScreenShare,
+    toggleWatchScreenShare,
+    participantVolumes,
+    streamVolumes,
+    setParticipantVolume,
+    setStreamVolume,
     joinChannel,
     registerVideoContainer,
   } = useVoiceCall();
 
   const videoContainerRef = useRef(null);
   const isThisChannelActive = connected && activeChannel?.id === channel.id;
+  const selectedShare = screenShares.find((s) => s.sid === selectedScreenShareSid) || null;
 
   useEffect(() => {
     if (!isThisChannelActive) return;
@@ -83,25 +110,35 @@ export default function VoiceChannel({ channel }) {
           <div className="voice-participants">
             {participants.map((p) => (
               <div key={p.identity} className={"voice-participant" + (speakingIds.has(p.identity) ? " speaking" : "")}>
-                <Avatar name={p.name} url={p.avatarUrl} className="voice-avatar" />
-                <span>{p.name}</span>
-                {p.deafened ? (
-                  <span className="voice-status-badge" title="Ensurdecido - não está ouvindo ninguém">
-                    <HeadphonesOffIcon size={13} /> ensurdecido
-                  </span>
-                ) : (
-                  !p.micEnabled && (
-                    <span className="voice-status-badge danger" title="Microfone mutado">
-                      <MicOffIcon size={13} /> mudo
+                <div className="voice-participant-row">
+                  <Avatar name={p.name} url={p.avatarUrl} className="voice-avatar" />
+                  <span>{p.name}</span>
+                  {p.deafened ? (
+                    <span className="voice-status-badge" title="Ensurdecido - não está ouvindo ninguém">
+                      <HeadphonesOffIcon size={13} /> ensurdecido
                     </span>
-                  )
+                  ) : (
+                    !p.micEnabled && (
+                      <span className="voice-status-badge danger" title="Microfone mutado">
+                        <MicOffIcon size={13} /> mudo
+                      </span>
+                    )
+                  )}
+                </div>
+                {/* Volume so' faz sentido pra voz dos OUTROS - a sua propria voz voce nao ouve. */}
+                {!p.isLocal && (
+                  <VolumeSlider
+                    value={participantVolumes[p.identity] ?? 100}
+                    onChange={(v) => setParticipantVolume(p.identity, v)}
+                    label={`Volume de ${p.name} (padrão 100%, pode passar de 100%)`}
+                  />
                 )}
               </div>
             ))}
           </div>
           <p className="voice-hint">
             O anel verde acende em volta de quem está falando de verdade — só quem está dentro da call vê esse
-            indicador.
+            indicador. Arraste o controle de volume de cada pessoa para deixá-la mais alta (até 200%) ou mais baixa.
           </p>
         </section>
 
@@ -133,14 +170,50 @@ export default function VoiceChannel({ channel }) {
               </div>
             )
           )}
+
+          {selectedShare && !selectedShare.isLocal && (
+            <div className="screenshare-controls">
+              <button
+                type="button"
+                className="link-btn screenshare-watch-btn"
+                onClick={() => toggleWatchScreenShare(selectedShare.sid)}
+                title={
+                  selectedShare.watching
+                    ? "Parar de assistir (economiza dados - você continua na call de voz normalmente)"
+                    : "Voltar a assistir esta transmissão"
+                }
+              >
+                {selectedShare.watching ? (
+                  <>
+                    <EyeOffIcon size={14} /> Parar de assistir
+                  </>
+                ) : (
+                  <>
+                    <EyeIcon size={14} /> Assistir transmissão
+                  </>
+                )}
+              </button>
+              <VolumeSlider
+                value={streamVolumes[selectedShare.participantIdentity] ?? 100}
+                onChange={(v) => setStreamVolume(selectedShare.participantIdentity, v)}
+                label={`Volume do áudio da transmissão de ${selectedShare.name} (padrão 100%, pode passar de 100%)`}
+              />
+            </div>
+          )}
+
           <div className="screenshare-stage">
             {/* Fica sempre montado (mesmo sem ninguem compartilhando) para o VoiceCallContext
                 ter uma referencia estavel de onde anexar o video quando alguem comecar. */}
             <div
-              className={"voice-video-grid" + (screenShares.length === 0 ? " empty" : "")}
+              className={"voice-video-grid" + (screenShares.length === 0 || !selectedShare?.watching ? " empty" : "")}
               ref={videoContainerRef}
               onDoubleClick={handleFullscreen}
             />
+            {selectedShare && !selectedShare.watching && (
+              <p className="screenshare-paused-hint">
+                Você não está assistindo esta transmissão agora. Clique em "Assistir transmissão" acima para voltar.
+              </p>
+            )}
           </div>
         </section>
       </div>

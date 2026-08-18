@@ -513,14 +513,14 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 
 .voice-participants {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 190px);
+  grid-template-columns: repeat(auto-fill, 210px);
   justify-content: flex-start;
   gap: 10px;
 }
 .voice-participant {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
   background: var(--bg-panel-2);
@@ -528,7 +528,8 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   transition: all 0.15s ease;
   min-width: 0;
 }
-.voice-participant span:not(.voice-avatar):not(.voice-status-badge) {
+.voice-participant-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.voice-participant-row span:not(.voice-avatar):not(.voice-status-badge) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -556,6 +557,43 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .voice-status-icon.danger { color: var(--danger); }
 .voice-hint { color: var(--text-muted); font-size: 12px; margin: 10px 0 0; line-height: 1.5; }
 .voice-hint:first-child { margin-top: 0; }
+
+/* Controle de volume 0-200% - reaproveitado pra voz de cada participante e pro audio da
+   transmissao de tela selecionada. Acima de 100% (boosted) o preenchimento fica laranja,
+   pra deixar claro visualmente que aquilo esta sendo amplificado alem do normal. */
+.volume-slider-row { display: flex; align-items: center; gap: 8px; }
+.volume-slider {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.volume-slider.boosted { accent-color: var(--warning, #e0a032); }
+.volume-slider-value {
+  min-width: 36px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.screenshare-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.screenshare-watch-btn { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.screenshare-controls .volume-slider-row { min-width: 160px; flex: 1; }
+.screenshare-paused-hint {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+}
 
 .screenshare-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .screenshare-tab {

@@ -3,7 +3,7 @@ import { Room, RoomEvent, Track } from "livekit-client";
 import api from "../api/client";
 import { useAuth } from "./AuthContext.jsx";
 import { useMicLevel } from "../utils/useMicLevel";
-import { getSavedAudioInput, getSavedAudioOutput } from "../utils/audioSettings";
+import { getNoiseSuppressionEnabled, getSavedAudioInput, getSavedAudioOutput } from "../utils/audioSettings";
 import {
   playJoinSound,
   playLeaveSound,
@@ -66,14 +66,23 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
   const [screenSharing, setScreenSharing] = useState(false);
   const [participants, setParticipants] = useState([]); // dentro da call, com quem realmente entrou
   const [speakingIds, setSpeakingIds] = useState(new Set());
-  const [screenShares, setScreenShares] = useState([]); // [{ sid, name, isLocal }]
+  const [screenShares, setScreenShares] = useState([]); // [{ sid, name, isLocal, watching }]
   const [selectedScreenShareSid, setSelectedScreenShareSid] = useState(null);
+  const [participantVolumes, setParticipantVolumesState] = useState({}); // identity -> 0..200 (voz)
+  const [streamVolumes, setStreamVolumesState] = useState({}); // identity -> 0..200 (audio da transmissao de tela dessa pessoa)
   const { level: micLevel, start: startMicMeter, stop: stopMicMeter } = useMicLevel();
 
   const roomRef = useRef(null);
   const videoContainerElRef = useRef(null); // registrado pelo VoiceChannel quando esta na tela
-  const videoTracksRef = useRef(new Map()); // trackSid -> { track, participantIdentity, participantName, isLocal }
+  // trackSid -> { track (null se nao estiver "assistindo"), pub (RemoteTrackPublication, pra
+  // poder inscrever/desinscrever - null pra sua propria tela), participantIdentity,
+  // participantName, isLocal }
+  const videoTracksRef = useRef(new Map());
   const selectedSidRef = useRef(null);
+  const micAudioTracksRef = useRef(new Map()); // identity -> RemoteAudioTrack (voz, pro controle de volume)
+  const screenAudioTracksRef = useRef(new Map()); // identity -> RemoteAudioTrack (audio da transmissao de tela dessa pessoa)
+  const participantVolumesRef = useRef(new Map()); // identity -> 0..200, fonte da verdade sincrona
+  const streamVolumesRef = useRef(new Map());
   const micEnabledBeforeDeafenRef = useRef(true);
   const joiningRef = useRef(false); // evita duas conexoes simultaneas (ex: React StrictMode chamando o efeito 2x)
   // Ensurdecido e' diferente de so mutar: quem ensurdece nao esta OUVINDO ninguem, nao so
@@ -209,7 +218,16 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
 
   function syncScreenShares() {
     setScreenShares(
-      [...videoTracksRef.current.entries()].map(([sid, v]) => ({ sid, name: v.participantName, isLocal: v.isLocal }))
+      [...videoTracksRef.current.entries()].map(([sid, v]) => ({
+        sid,
+        name: v.participantName,
+        participantIdentity: v.participantIdentity,
+        isLocal: v.isLocal,
+        // "assistindo" = a gente tem o track de video de verdade em maos agora. Fica falso
+        // quando o usuario escolhe parar de assistir (ver toggleWatchScreenShare) sem por
+        // isso sumir da lista de abas - continua la, so' sem baixar video ate' voltar a assistir.
+        watching: !!v.track,
+      }))
     );
   }
 
@@ -219,7 +237,7 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
     if (!container) return;
     container.innerHTML = "";
     const entry = sid ? videoTracksRef.current.get(sid) : null;
-    if (entry) {
+    if (entry?.track) {
       const el = entry.track.attach();
       el.dataset.participant = entry.participantIdentity;
       container.appendChild(el);
@@ -232,14 +250,21 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
     renderSelectedVideo(sid);
   }, []);
 
-  function addVideoTrack(sid, track, participantIdentity, participantName, isLocal) {
-    videoTracksRef.current.set(sid, { track, participantIdentity, participantName, isLocal });
+  /** Cria ou atualiza a entrada de uma transmissao de tela (mescla com o que ja existia). */
+  function upsertScreenShare(sid, patch) {
+    const merged = { ...(videoTracksRef.current.get(sid) || {}), ...patch };
+    videoTracksRef.current.set(sid, merged);
     syncScreenShares();
-    // Se ninguem estava selecionado ainda, mostra essa automaticamente (ex: primeira pessoa
-    // a compartilhar, ou voce mesmo iniciando o seu compartilhamento).
-    if (!selectedSidRef.current) selectScreenShare(sid);
+    // Se ninguem estava selecionado ainda, mostra essa automaticamente assim que o video
+    // chegar (ex: primeira pessoa a compartilhar, ou voce mesmo iniciando o seu).
+    if (!selectedSidRef.current && merged.track) {
+      selectScreenShare(sid);
+    } else if (selectedSidRef.current === sid) {
+      renderSelectedVideo(sid);
+    }
   }
 
+  /** A transmissao acabou de verdade (a pessoa parou de compartilhar) - some da lista. */
   function removeVideoTrack(sid) {
     videoTracksRef.current.delete(sid);
     syncScreenShares();
@@ -247,6 +272,37 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
       const next = [...videoTracksRef.current.keys()][0] || null;
       selectScreenShare(next);
     }
+  }
+
+  /**
+   * Deixa de assistir (ou volta a assistir) uma transmissao sem sair da call de voz - so'
+   * cancela a inscricao do video no LiveKit (para de baixar aquele fluxo), a aba continua
+   * la pra retomar quando quiser. Nao se aplica a sua propria tela (isLocal / sem pub).
+   */
+  const toggleWatchScreenShare = useCallback(async (sid) => {
+    const entry = videoTracksRef.current.get(sid);
+    if (!entry || entry.isLocal || !entry.pub) return;
+    try {
+      await entry.pub.setSubscribed(!entry.track);
+    } catch (err) {
+      console.warn("Não foi possível mudar a inscrição da transmissão:", err);
+    }
+    // O proprio evento TrackSubscribed/TrackUnsubscribed do LiveKit vai atualizar entry.track
+    // e chamar syncScreenShares/renderSelectedVideo quando a mudanca for confirmada.
+  }, []);
+
+  function setParticipantVolume(identity, percent) {
+    const clamped = Math.max(0, Math.min(200, Math.round(percent)));
+    participantVolumesRef.current.set(identity, clamped);
+    setParticipantVolumesState(Object.fromEntries(participantVolumesRef.current));
+    micAudioTracksRef.current.get(identity)?.setVolume(clamped / 100);
+  }
+
+  function setStreamVolume(identity, percent) {
+    const clamped = Math.max(0, Math.min(200, Math.round(percent)));
+    streamVolumesRef.current.set(identity, clamped);
+    setStreamVolumesState(Object.fromEntries(streamVolumesRef.current));
+    screenAudioTracksRef.current.get(identity)?.setVolume(clamped / 100);
   }
 
   /** Desconecta e limpa tudo - usado tanto no "Sair da call" quanto ao trocar de canal. */
@@ -263,6 +319,10 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
     roomRef.current = null;
     videoTracksRef.current.clear();
     selectedSidRef.current = null;
+    micAudioTracksRef.current.clear();
+    screenAudioTracksRef.current.clear();
+    participantVolumesRef.current = new Map();
+    streamVolumesRef.current = new Map();
     stopMicMeter();
     setConnected(false);
     setActiveChannel(null);
@@ -273,6 +333,8 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
     setDeafened(false);
     setScreenShares([]);
     setSelectedScreenShareSid(null);
+    setParticipantVolumesState({});
+    setStreamVolumesState({});
     if (videoContainerElRef.current) videoContainerElRef.current.innerHTML = "";
   }
 
@@ -291,26 +353,71 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
       const newRoom = new Room({
         adaptiveStream: true,
         dynacast: true,
-        audioCaptureDefaults: savedInput ? { deviceId: savedInput } : undefined,
+        // Sem isso, o volume de cada participante/transmissao fica preso ao <audio>.volume
+        // do navegador, que trava em 100% - com webAudioMix ligado, o LiveKit passa a
+        // controlar o audio por um GainNode (Web Audio API), que aceita valores acima de 1
+        // (ate' 200% aqui - ver setParticipantVolume/setStreamVolume).
+        webAudioMix: true,
+        audioCaptureDefaults: {
+          ...(savedInput ? { deviceId: savedInput } : {}),
+          noiseSuppression: getNoiseSuppressionEnabled(),
+        },
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
         if (track.kind === Track.Kind.Video && pub.source === Track.Source.ScreenShare) {
-          addVideoTrack(pub.trackSid, track, participant.identity, participant.name || participant.identity, false);
+          upsertScreenShare(pub.trackSid, {
+            track,
+            pub,
+            participantIdentity: participant.identity,
+            participantName: participant.name || participant.identity,
+            isLocal: false,
+          });
         } else if (track.kind === Track.Kind.Audio) {
+          // Voz (microfone) e audio da transmissao de tela tem controle de volume separado
+          // um do outro - guarda a referencia do track de cada um pra poder ajustar depois.
+          if (pub.source === Track.Source.Microphone) {
+            micAudioTracksRef.current.set(participant.identity, track);
+            track.setVolume((participantVolumesRef.current.get(participant.identity) ?? 100) / 100);
+          } else if (pub.source === Track.Source.ScreenShareAudio) {
+            screenAudioTracksRef.current.set(participant.identity, track);
+            track.setVolume((streamVolumesRef.current.get(participant.identity) ?? 100) / 100);
+          }
           const el = track.attach(); // audio toca sozinho, nao precisa aparecer na tela
           if (deafenedRef.current) el.muted = true;
         }
       });
-      newRoom.on(RoomEvent.TrackUnsubscribed, (track, pub) => {
-        if (pub.source === Track.Source.ScreenShare) removeVideoTrack(pub.trackSid);
+      newRoom.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+        if (pub.source === Track.Source.ScreenShare) {
+          // So' desanexa o video (perdeu o track) - a aba continua na lista, ver
+          // toggleWatchScreenShare. Some de vez so' quando a pessoa PARA de compartilhar
+          // (RoomEvent.TrackUnpublished, abaixo).
+          const entry = videoTracksRef.current.get(pub.trackSid);
+          if (entry) {
+            entry.track = null;
+            syncScreenShares();
+            if (selectedSidRef.current === pub.trackSid) renderSelectedVideo(pub.trackSid);
+          }
+        }
+        if (pub.source === Track.Source.Microphone) micAudioTracksRef.current.delete(participant.identity);
+        if (pub.source === Track.Source.ScreenShareAudio) screenAudioTracksRef.current.delete(participant.identity);
         track.detach().forEach((el) => el.remove());
+      });
+      // A pessoa parou de compartilhar a tela de vez (nao so' alguem deixou de assistir).
+      newRoom.on(RoomEvent.TrackUnpublished, (pub) => {
+        if (pub.source === Track.Source.ScreenShare) removeVideoTrack(pub.trackSid);
       });
       // Sua propria tela compartilhada tambem entra na lista, pra voce poder conferir
       // o que esta sendo transmitido (assim como as dos outros).
       newRoom.on(RoomEvent.LocalTrackPublished, (pub, participant) => {
         if (pub.source === Track.Source.ScreenShare && pub.track) {
-          addVideoTrack(pub.trackSid, pub.track, participant.identity, `${participant.name || participant.identity} (você)`, true);
+          upsertScreenShare(pub.trackSid, {
+            track: pub.track,
+            pub: null, // sem pub remoto - nao faz sentido "parar de assistir" sua propria tela
+            participantIdentity: participant.identity,
+            participantName: `${participant.name || participant.identity} (você)`,
+            isLocal: true,
+          });
         }
       });
       newRoom.on(RoomEvent.LocalTrackUnpublished, (pub) => {
@@ -486,6 +593,11 @@ export function VoiceCallProvider({ stompClient, stompConnected, children }) {
         screenShares,
         selectedScreenShareSid,
         selectScreenShare,
+        toggleWatchScreenShare,
+        participantVolumes,
+        streamVolumes,
+        setParticipantVolume,
+        setStreamVolume,
         joinChannel,
         leaveChannel,
         toggleMic,

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useMicLevel } from "../utils/useMicLevel";
 import {
+  getNoiseSuppressionEnabled,
   getSavedAudioInput,
   getSavedAudioOutput,
   getSoundEffectsEnabled,
+  setNoiseSuppressionEnabled,
   setSavedAudioInput,
   setSavedAudioOutput,
   setSoundEffectsEnabled,
@@ -74,6 +76,7 @@ export default function SettingsModal({ onClose }) {
   const [selectedInput, setSelectedInput] = useState(getSavedAudioInput());
   const [selectedOutput, setSelectedOutput] = useState(getSavedAudioOutput());
   const [soundEffects, setSoundEffects] = useState(getSoundEffectsEnabled());
+  const [noiseSuppression, setNoiseSuppression] = useState(getNoiseSuppressionEnabled());
   const [muteShortcut, setMuteShortcutState] = useState(getMuteShortcut());
   const [deafenShortcut, setDeafenShortcutState] = useState(getDeafenShortcut());
   const [permissionError, setPermissionError] = useState("");
@@ -149,6 +152,7 @@ export default function SettingsModal({ onClose }) {
     setSavedAudioInput(selectedInput);
     setSavedAudioOutput(selectedOutput);
     setSoundEffectsEnabled(soundEffects);
+    setNoiseSuppressionEnabled(noiseSuppression);
     setMuteShortcut(muteShortcut);
     setDeafenShortcut(deafenShortcut);
     stopTest();
@@ -265,6 +269,19 @@ export default function SettingsModal({ onClose }) {
 
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <audio ref={audioElRef} autoPlay />
+
+        <label className="settings-checkbox-row">
+          <input
+            type="checkbox"
+            checked={noiseSuppression}
+            onChange={(e) => setNoiseSuppression(e.target.checked)}
+          />
+          Supressão de ruído no microfone
+        </label>
+        <p className="admin-hint" style={{ margin: "4px 0 0" }}>
+          Filtra ruído de fundo (ventilador, teclado, etc). Desative se seu microfone soar
+          estranho ou abafado com ela ligada (comum em microfones de estúdio/instrumentos).
+        </p>
 
         <div className="settings-divider" />
 
