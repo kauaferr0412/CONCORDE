@@ -215,6 +215,17 @@ export function EyeOffIcon(props) {
   );
 }
 
+export function HashIcon(props) {
+  return (
+    <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>
+      <line x1="5" y1="9" x2="19" y2="9" />
+      <line x1="5" y1="15" x2="19" y2="15" />
+      <line x1="10" y1="4" x2="8" y2="20" />
+      <line x1="16" y1="4" x2="14" y2="20" />
+    </svg>
+  );
+}
+
 export function ReplyIcon(props) {
   return (
     <svg {...base} width={props.size || 18} height={props.size || 18} className={props.className}>

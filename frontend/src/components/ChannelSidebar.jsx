@@ -6,9 +6,11 @@ import { useProfile } from "../context/ProfileContext.jsx";
 import api from "../api/client";
 import { subscribeToVoicePresence } from "../ws/chatSocket";
 import { useUnreadMessages } from "../utils/useUnreadMessages";
+import { useServerMembers } from "../utils/useServerMembers";
 import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  HashIcon,
   HeadphonesIcon,
   HeadphonesOffIcon,
   LogOutIcon,
@@ -18,6 +20,7 @@ import {
   ScreenShareIcon,
   SettingsIcon,
   ShieldIcon,
+  VolumeIcon,
 } from "./icons.jsx";
 import Avatar from "./Avatar.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
@@ -43,6 +46,8 @@ export default function ChannelSidebar({
     useVoiceCall();
   const textChannels = channels.filter((c) => c.type === "TEXT");
   const voiceChannels = channels.filter((c) => c.type === "VOICE");
+  const members = useServerMembers(server?.id, stompClient, stompConnected);
+  const onlineCount = members.filter((m) => m.status !== "OFFLINE").length;
   const { unreadCounts } = useUnreadMessages(
     textChannels,
     selectedChannelId,
@@ -113,7 +118,16 @@ export default function ChannelSidebar({
   return (
     <div className={"channel-sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="channel-sidebar-header">
-        {!collapsed && <strong>{server?.name || "Selecione um servidor"}</strong>}
+        {!collapsed && (
+          <div className="channel-sidebar-title">
+            <strong>{server?.name || "Selecione um servidor"}</strong>
+            {server && (
+              <span className="channel-sidebar-subtitle">
+                {members.length} membro{members.length === 1 ? "" : "s"} · {onlineCount} online
+              </span>
+            )}
+          </div>
+        )}
         <button
           className="icon-btn collapse-toggle"
           onClick={toggleCollapsed}
@@ -170,7 +184,8 @@ export default function ChannelSidebar({
                     className={"channel-item" + (c.id === selectedChannelId ? " active" : "")}
                     onClick={() => onSelectChannel(c)}
                   >
-                    # {c.name}
+                    <HashIcon size={16} className="channel-item-icon" />
+                    {c.name}
                     {unreadCounts[c.id] > 0 && (
                       <span className="channel-unread-badge">{unreadCounts[c.id] > 99 ? "99+" : unreadCounts[c.id]}</span>
                     )}
@@ -189,14 +204,31 @@ export default function ChannelSidebar({
             {voiceExpanded && (
               <>
                 {voiceChannels.map((c) => (
-                  <button
-                    key={c.id}
-                    className={"channel-item" + (c.id === selectedChannelId ? " active" : "")}
-                    onClick={() => onSelectChannel(c)}
-                  >
-                    🔊 {c.name}
-                    {activeChannel?.id === c.id && <span className="channel-item-live"> · conectado</span>}
-                  </button>
+                  <div key={c.id}>
+                    <button
+                      className={"channel-item" + (c.id === selectedChannelId ? " active" : "")}
+                      onClick={() => onSelectChannel(c)}
+                    >
+                      <VolumeIcon size={16} className="channel-item-icon" />
+                      {c.name}
+                      {activeChannel?.id === c.id && <span className="channel-item-live">CONECTADO</span>}
+                    </button>
+                    {(presenceByChannel[c.id] || []).length > 0 && (
+                      <div className="channel-voice-participants">
+                        {presenceByChannel[c.id].map((p) => (
+                          <div key={p.userId} className="channel-voice-participant">
+                            <Avatar name={p.username} url={p.avatarUrl} className="voice-avatar small" />
+                            <span>{p.username}</span>
+                            {p.deafened ? (
+                              <HeadphonesOffIcon size={12} className="voice-status-icon" />
+                            ) : (
+                              !p.micEnabled && <MicOffIcon size={12} className="voice-status-icon danger" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
                 <button className="channel-item add" onClick={() => onCreateChannel("VOICE")}>
                   + canal de voz
@@ -255,8 +287,10 @@ export default function ChannelSidebar({
               title={`Seu status: ${STATUS_LABEL[user?.status] || "Online"} (mude em Configurações)`}
             />
           </div>
-          <span className="user-bar-name">{user?.nickname || user?.username}</span>
-          {isAdmin && <span className="admin-badge">admin</span>}
+          <span className="user-bar-text">
+            <span className="user-bar-name">{user?.nickname || user?.username}</span>
+            {isAdmin && <span className="user-bar-role">Administrador</span>}
+          </span>
         </button>
         <div className="user-bar-actions">
           {isAdmin && (

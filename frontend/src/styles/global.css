@@ -124,7 +124,7 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
 .auth-screen {
   height: 100%; display: flex; align-items: center; justify-content: center;
   background:
-    radial-gradient(700px circle at 15% 20%, rgba(106,108,241,0.10), transparent 55%),
+    radial-gradient(700px circle at 15% 20%, rgba(47,107,255,0.10), transparent 55%),
     radial-gradient(600px circle at 85% 80%, rgba(51,194,129,0.06), transparent 55%),
     var(--bg-app);
 }
@@ -302,7 +302,9 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   transition: opacity 0.08s ease;
 }
 .collapse-toggle { flex-shrink: 0; }
-.channel-sidebar-header strong { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.channel-sidebar-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.channel-sidebar-header strong { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channel-sidebar-subtitle { font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .channel-list { flex: 1; overflow-y: auto; padding: 14px 10px; }
 .channel-group-title {
   font-size: 10.5px;
@@ -328,8 +330,10 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   border: 1px solid transparent;
 }
 .channel-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.channel-item.active { background: var(--accent-soft); color: var(--accent-text); border-color: rgba(106,108,241,0.35); }
+.channel-item.active { background: var(--accent-soft); color: var(--accent-text); border-color: rgba(47,107,255,0.35); }
 .channel-item.add { color: var(--text-muted); font-size: 12.5px; font-weight: 600; }
+.channel-item-icon { flex-shrink: 0; margin-right: 8px; color: var(--text-muted); }
+.channel-item.active .channel-item-icon { color: var(--accent-text); }
 .link-btn {
   background: transparent;
   border: none;
@@ -339,19 +343,47 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   font-weight: 600;
 }
 .link-btn:hover { background: var(--accent-soft); border-radius: var(--radius-sm); }
-.channel-item-live { color: var(--success); font-weight: 700; font-size: 11.5px; }
+.channel-item-live {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+}
 .channel-unread-badge {
   margin-left: auto;
   flex-shrink: 0;
-  background: var(--danger);
+  background: var(--accent);
   color: #fff;
   font-size: 10.5px;
   font-weight: 700;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   min-width: 18px;
   text-align: center;
 }
+/* "CONECTADO" ja usa margin-left:auto - se o unread badge tambem aparecer no mesmo item
+   (caso raro, canal de voz nao tem unread hoje) o :not evita os dois disputarem o auto. */
+.channel-item-live + .channel-unread-badge { margin-left: 6px; }
+
+/* Lista de quem esta na call, aninhada embaixo do canal de voz na propria sidebar. */
+.channel-voice-participants { padding: 2px 0 4px 12px; display: flex; flex-direction: column; gap: 1px; }
+.channel-voice-participant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.channel-voice-participant:hover { background: var(--bg-hover); }
+.channel-voice-participant span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channel-voice-participant .voice-status-icon { margin-left: auto; flex-shrink: 0; }
 
 /* Cabecalho de categoria (CANAIS DE TEXTO / CANAIS DE VOZ) - clicavel pra recolher/expandir */
 .channel-category-header {
@@ -438,7 +470,9 @@ select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px
   font-size: 11.5px; font-weight: 700;
 }
 img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-preview, img.profile-avatar { object-fit: cover; }
+.user-bar-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .user-bar-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.user-bar-role { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .user-bar .admin-badge { flex-shrink: 0; }
 .user-bar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 
@@ -746,6 +780,38 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
 .voice-status-icon { color: var(--text-muted); flex-shrink: 0; }
 .voice-status-icon.danger { color: var(--danger); }
 .voice-hint { color: var(--text-muted); font-size: 12px; margin: 10px 0 0; line-height: 1.5; }
+
+/* "NA CALL" - um card por linha (avatar + nome + status + slider de volume tudo
+   alinhado horizontalmente), diferente do grid usado em "Membros com acesso". */
+.voice-call-list { display: flex; flex-direction: column; gap: 8px; }
+.voice-call-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  transition: all 0.15s ease;
+}
+.voice-call-card.speaking {
+  border-color: var(--success);
+  background: var(--success-soft);
+  box-shadow: 0 0 0 3px rgba(23, 178, 106, 0.12);
+}
+.voice-call-name {
+  font-weight: 600;
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-call-you { margin-left: 6px; font-weight: 500; font-size: 12px; color: var(--text-muted); }
+.voice-call-card .volume-slider-row { flex: 1; min-width: 100px; }
+/* Dentro do card de call, o badge nao "pula" pro fim sozinho (senao disputa espaco com o
+   slider que vem logo depois) - fica encostado no nome, e quem preenche o resto e' o slider. */
+.voice-call-card .voice-status-badge { margin-left: 0; }
 .voice-hint:first-child { margin-top: 0; }
 
 /* Controle de volume 0-200% - reaproveitado pra voz de cada participante e pro audio da
@@ -905,7 +971,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   padding: 8px 9px;
 }
 .status-option:hover { background: var(--bg-hover); }
-.status-option.active { border-color: rgba(106,108,241,0.4); background: var(--accent-soft); }
+.status-option.active { border-color: rgba(47,107,255,0.4); background: var(--accent-soft); }
 .status-option .status-dot { position: static; border: none; width: 10px; height: 10px; flex-shrink: 0; }
 .status-option span:last-child { display: flex; flex-direction: column; gap: 1px; }
 .status-option strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
@@ -920,7 +986,7 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   padding: 7px 12px;
 }
 .screenshare-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
-.screenshare-tab.active { background: var(--accent-soft); border-color: rgba(106,108,241,0.4); color: var(--accent-text); }
+.screenshare-tab.active { background: var(--accent-soft); border-color: rgba(47,107,255,0.4); color: var(--accent-text); }
 
 /* "Palco" do video: fundo escuro tipo cinema, video nunca passa de ~760px de largura
    nem de 55% da altura da tela - antes ele esticava full-bleed, ficando gigante. */

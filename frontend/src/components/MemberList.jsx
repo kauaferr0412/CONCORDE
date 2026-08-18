@@ -87,6 +87,7 @@ export function MemberRow({ member }) {
         <span className={"status-dot " + STATUS_DOT_CLASS[member.status]} title={STATUS_LABEL[member.status]} />
       </div>
       <span className="member-row-name">{member.username}</span>
+      {member.role === "ADMIN" && <span className="admin-badge">ADMIN</span>}
     </button>
   );
 }

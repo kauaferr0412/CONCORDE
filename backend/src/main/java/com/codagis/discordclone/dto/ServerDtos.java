@@ -1,6 +1,7 @@
 package com.codagis.discordclone.dto;
 
 import com.codagis.discordclone.domain.ChannelType;
+import com.codagis.discordclone.domain.Role;
 import com.codagis.discordclone.ws.PresenceStatus;
 import jakarta.validation.constraints.NotBlank;
 
@@ -18,5 +19,5 @@ public class ServerDtos {
 
     public record ServerWithChannels(ServerResponse server, List<ChannelResponse> channels) {}
 
-    public record MemberResponse(Long userId, String username, String avatarUrl, PresenceStatus status) {}
+    public record MemberResponse(Long userId, String username, String avatarUrl, PresenceStatus status, Role role) {}
 }

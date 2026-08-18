@@ -89,7 +89,7 @@ public class ServerService {
         List<Long> userIds = memberships.stream().map(Membership::getUserId).toList();
         var statusById = presenceService.effectiveStatusOf(userIds);
         return userRepository.findAllById(userIds).stream()
-                .map(u -> new MemberResponse(u.getId(), u.getUsername(), u.getAvatarUrl(), statusById.get(u.getId())))
+                .map(u -> new MemberResponse(u.getId(), u.getUsername(), u.getAvatarUrl(), statusById.get(u.getId()), u.getRole()))
                 .sorted((a, b) -> {
                     boolean aOffline = a.status() == PresenceStatus.OFFLINE;
                     boolean bOffline = b.status() == PresenceStatus.OFFLINE;

@@ -113,24 +113,25 @@ export default function VoiceChannel({ channel, stompClient, stompConnected }) {
 
         <section className="voice-section">
           <p className="voice-section-title">NA CALL — {participants.length}</p>
-          <div className="voice-participants">
+          <div className="voice-call-list">
             {participants.map((p) => (
-              <div key={p.identity} className={"voice-participant" + (speakingIds.has(p.identity) ? " speaking" : "")}>
-                <div className="voice-participant-row">
-                  <Avatar name={p.name} url={p.avatarUrl} className="voice-avatar" />
-                  <span>{p.name}</span>
-                  {p.deafened ? (
-                    <span className="voice-status-badge" title="Ensurdecido - não está ouvindo ninguém">
-                      <HeadphonesOffIcon size={13} /> ensurdecido
+              <div key={p.identity} className={"voice-call-card" + (speakingIds.has(p.identity) ? " speaking" : "")}>
+                <Avatar name={p.name} url={p.avatarUrl} className="voice-avatar" />
+                <span className="voice-call-name">
+                  {p.isLocal ? p.name.replace(" (você)", "") : p.name}
+                  {p.isLocal && <span className="voice-call-you">você</span>}
+                </span>
+                {p.deafened ? (
+                  <span className="voice-status-badge" title="Ensurdecido - não está ouvindo ninguém">
+                    <HeadphonesOffIcon size={13} /> ensurdecido
+                  </span>
+                ) : (
+                  !p.micEnabled && (
+                    <span className="voice-status-badge danger" title="Microfone mutado">
+                      <MicOffIcon size={13} /> mudo
                     </span>
-                  ) : (
-                    !p.micEnabled && (
-                      <span className="voice-status-badge danger" title="Microfone mutado">
-                        <MicOffIcon size={13} /> mudo
-                      </span>
-                    )
-                  )}
-                </div>
+                  )
+                )}
                 {/* Volume so' faz sentido pra voz dos OUTROS - a sua propria voz voce nao ouve. */}
                 {!p.isLocal && (
                   <VolumeSlider
