@@ -76,7 +76,11 @@ public class LiveKitService {
             builder.claim("metadata", toMetadataJson(avatarUrl));
         }
 
-        return builder.signWith(key).compact();
+        // O LiveKit exige HS256 especificamente - sem isso, o jjwt escolhe o algoritmo
+        // sozinho com base no tamanho da chave (HS512 pra chaves de 64+ bytes, como as
+        // geradas com "openssl rand -hex 32"), e o LiveKit rejeita o token como invalido
+        // por nao reconhecer o algoritmo.
+        return builder.signWith(key, Jwts.SIG.HS256).compact();
     }
 
     private String toMetadataJson(String avatarUrl) {
