@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useServerMembers } from "../utils/useServerMembers";
+import { useProfile } from "../context/ProfileContext.jsx";
 import { ChevronsLeftIcon, ChevronsRightIcon, UsersIcon } from "./icons.jsx";
 import Avatar from "./Avatar.jsx";
 
@@ -73,13 +74,19 @@ export default function MemberList({ serverId, stompClient, stompConnected }) {
 }
 
 export function MemberRow({ member }) {
+  const { openProfile } = useProfile();
   return (
-    <div className={"member-row" + (member.status === "OFFLINE" ? " offline" : "")}>
+    <button
+      type="button"
+      className={"member-row" + (member.status === "OFFLINE" ? " offline" : "")}
+      onClick={() => openProfile(member.userId)}
+      title={`Ver perfil de ${member.username}`}
+    >
       <div className="member-avatar-wrap">
         <Avatar name={member.username} url={member.avatarUrl} className="voice-avatar small" />
         <span className={"status-dot " + STATUS_DOT_CLASS[member.status]} title={STATUS_LABEL[member.status]} />
       </div>
       <span className="member-row-name">{member.username}</span>
-    </div>
+    </button>
   );
 }

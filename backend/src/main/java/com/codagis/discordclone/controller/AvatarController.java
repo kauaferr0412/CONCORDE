@@ -1,6 +1,7 @@
 package com.codagis.discordclone.controller;
 
 import com.codagis.discordclone.domain.User;
+import com.codagis.discordclone.dto.AuthDtos.ProfileRequest;
 import com.codagis.discordclone.dto.AuthDtos.StatusRequest;
 import com.codagis.discordclone.dto.AuthDtos.UserResponse;
 import com.codagis.discordclone.repository.UserRepository;
@@ -60,7 +61,24 @@ public class AvatarController {
         return toResponse(user);
     }
 
+    /** Usuario edita o proprio apelido/bio - string vazia limpa o campo, volta a mostrar o username. */
+    @PutMapping("/profile")
+    @Transactional
+    public UserResponse setProfile(@Valid @RequestBody ProfileRequest req) {
+        Long userId = currentUser.id();
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("Usuario nao encontrado"));
+        user.setNickname(blankToNull(req.nickname()));
+        user.setBio(blankToNull(req.bio()));
+        userRepository.save(user);
+        return toResponse(user);
+    }
+
+    private String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
     private UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(), user.getStatus());
+        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(),
+                user.getStatus(), user.getNickname(), user.getBio());
     }
 }

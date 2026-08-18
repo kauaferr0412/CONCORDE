@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useVoiceCall } from "../context/VoiceCallContext.jsx";
+import { useProfile } from "../context/ProfileContext.jsx";
 import api from "../api/client";
 import { subscribeToVoicePresence } from "../ws/chatSocket";
+import { useUnreadMessages } from "../utils/useUnreadMessages";
 import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
@@ -36,10 +38,22 @@ export default function ChannelSidebar({
   onLogout,
 }) {
   const { isAdmin } = useAuth();
+  const { openProfile } = useProfile();
   const { activeChannel, micEnabled, deafened, screenSharing, toggleMic, toggleDeafen, toggleScreenShare, leaveChannel } =
     useVoiceCall();
   const textChannels = channels.filter((c) => c.type === "TEXT");
   const voiceChannels = channels.filter((c) => c.type === "VOICE");
+  const { unreadCounts } = useUnreadMessages(
+    textChannels,
+    selectedChannelId,
+    stompClient,
+    stompConnected,
+    user?.username,
+    (channelId) => {
+      const target = textChannels.find((c) => c.id === channelId);
+      if (target) onSelectChannel(target);
+    }
+  );
   const [connectedExpanded, setConnectedExpanded] = useState(true);
   const [textExpanded, setTextExpanded] = useState(true);
   const [voiceExpanded, setVoiceExpanded] = useState(true);
@@ -157,6 +171,9 @@ export default function ChannelSidebar({
                     onClick={() => onSelectChannel(c)}
                   >
                     # {c.name}
+                    {unreadCounts[c.id] > 0 && (
+                      <span className="channel-unread-badge">{unreadCounts[c.id] > 99 ? "99+" : unreadCounts[c.id]}</span>
+                    )}
                   </button>
                 ))}
                 <button className="channel-item add" onClick={() => onCreateChannel("TEXT")}>
@@ -230,7 +247,7 @@ export default function ChannelSidebar({
       )}
 
       <div className="user-bar">
-        <div className="user-bar-info">
+        <button type="button" className="user-bar-info" onClick={() => openProfile(user?.id)} title="Ver/editar seu perfil">
           <div className="member-avatar-wrap">
             <Avatar name={user?.username} url={user?.avatarUrl} className="user-bar-avatar" />
             <span
@@ -238,9 +255,9 @@ export default function ChannelSidebar({
               title={`Seu status: ${STATUS_LABEL[user?.status] || "Online"} (mude em Configurações)`}
             />
           </div>
-          <span className="user-bar-name">{user?.username}</span>
+          <span className="user-bar-name">{user?.nickname || user?.username}</span>
           {isAdmin && <span className="admin-badge">admin</span>}
-        </div>
+        </button>
         <div className="user-bar-actions">
           {isAdmin && (
             <Link to="/admin" className="icon-btn" title="Painel do administrador">

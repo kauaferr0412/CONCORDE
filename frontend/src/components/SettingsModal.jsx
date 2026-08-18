@@ -10,6 +10,7 @@ import {
   setSavedAudioOutput,
   setSoundEffectsEnabled,
 } from "../utils/audioSettings";
+import { getDesktopNotificationsEnabled, setDesktopNotificationsEnabled } from "../utils/notificationSettings";
 import {
   formatShortcut,
   getDeafenShortcut,
@@ -80,6 +81,10 @@ export default function SettingsModal({ onClose }) {
   const [selectedOutput, setSelectedOutput] = useState(getSavedAudioOutput());
   const [soundEffects, setSoundEffects] = useState(getSoundEffectsEnabled());
   const [noiseSuppression, setNoiseSuppression] = useState(getNoiseSuppressionEnabled());
+  const [desktopNotifications, setDesktopNotifications] = useState(getDesktopNotificationsEnabled());
+  const [notificationError, setNotificationError] = useState("");
+  const notificationsSupported = typeof Notification !== "undefined";
+  const notificationsBlocked = notificationsSupported && Notification.permission === "denied";
   const [muteShortcut, setMuteShortcutState] = useState(getMuteShortcut());
   const [deafenShortcut, setDeafenShortcutState] = useState(getDeafenShortcut());
   const [permissionError, setPermissionError] = useState("");
@@ -151,13 +156,27 @@ export default function SettingsModal({ onClose }) {
     setTesting(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSavedAudioInput(selectedInput);
     setSavedAudioOutput(selectedOutput);
     setSoundEffectsEnabled(soundEffects);
     setNoiseSuppressionEnabled(noiseSuppression);
     setMuteShortcut(muteShortcut);
     setDeafenShortcut(deafenShortcut);
+
+    // So' pede permissao ao navegador se o usuario realmente ligou a opcao agora - nunca
+    // pede sem ele ter escolhido isso primeiro. Se ele negar, a opcao volta a ficar desligada.
+    if (desktopNotifications && notificationsSupported && Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setDesktopNotificationsEnabled(false);
+        setNotificationError("Permissão de notificação negada pelo navegador - não deu pra ligar.");
+        stopTest();
+        return;
+      }
+    }
+    setDesktopNotificationsEnabled(desktopNotifications);
+
     stopTest();
     onClose();
   }
@@ -328,6 +347,26 @@ export default function SettingsModal({ onClose }) {
             Testar som
           </button>
         </label>
+
+        <label className="settings-checkbox-row">
+          <input
+            type="checkbox"
+            checked={desktopNotifications}
+            disabled={notificationsBlocked}
+            onChange={(e) => {
+              setNotificationError("");
+              setDesktopNotifications(e.target.checked);
+            }}
+          />
+          Notificações no PC quando chegar mensagem nova
+        </label>
+        {notificationsBlocked && (
+          <p className="admin-hint" style={{ margin: 0 }}>
+            Seu navegador tem notificações bloqueadas pra esse site. Libere nas configurações
+            do navegador (ícone de cadeado na barra de endereço) pra poder ligar isso.
+          </p>
+        )}
+        {notificationError && <p className="auth-error">{notificationError}</p>}
 
         <div className="settings-actions">
           <button type="button" className="link-btn" onClick={onClose}>

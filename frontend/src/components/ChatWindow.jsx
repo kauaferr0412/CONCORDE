@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/client";
 import { subscribeToChannel, sendChatMessage, editChatMessage, deleteChatMessage } from "../ws/chatSocket";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useProfile } from "../context/ProfileContext.jsx";
 import { useServerMembers } from "../utils/useServerMembers";
 import { applyMention, getMentionQuery, mentionsUser, splitMentions } from "../utils/mentions";
 import Avatar from "./Avatar.jsx";
@@ -32,6 +33,7 @@ function MessageText({ content, memberUsernames, myUsername }) {
 
 export default function ChatWindow({ channel, stompClient, stompConnected, stompError }) {
   const { user, isAdmin } = useAuth();
+  const { openProfile } = useProfile();
   const members = useServerMembers(channel?.serverId, stompClient, stompConnected);
   const memberUsernames = useMemo(() => members.map((m) => m.username), [members]);
 
@@ -247,10 +249,14 @@ export default function ChatWindow({ channel, stompClient, stompConnected, stomp
             }}
             className={"chat-message" + (mentionsUser(m.content, user?.username) ? " mentioned" : "")}
           >
-            <Avatar name={m.authorUsername} url={m.authorAvatarUrl} className="chat-avatar" />
+            <button type="button" className="chat-avatar-btn" onClick={() => openProfile(m.authorId)} title={`Ver perfil de ${m.authorUsername}`}>
+              <Avatar name={m.authorUsername} url={m.authorAvatarUrl} className="chat-avatar" />
+            </button>
             <div className="chat-message-body">
               <div>
-                <span className="chat-author">{m.authorUsername}</span>
+                <button type="button" className="chat-author" onClick={() => openProfile(m.authorId)}>
+                  {m.authorUsername}
+                </button>
                 <span className="chat-time">{new Date(m.createdAt).toLocaleTimeString()}</span>
                 {m.editedAt && <span className="chat-edited">(editado)</span>}
               </div>

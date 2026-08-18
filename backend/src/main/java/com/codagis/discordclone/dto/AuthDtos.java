@@ -14,7 +14,8 @@ public class AuthDtos {
             @NotBlank String password
     ) {}
 
-    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role, UserStatus status) {}
+    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role, UserStatus status,
+                                String nickname, String bio) {}
 
     public record AuthResponse(String token, UserResponse user) {}
 
@@ -27,4 +28,7 @@ public class AuthDtos {
 
     /** Usuario troca seu proprio status (Online/Ausente/Nao perturbe/Invisivel). */
     public record StatusRequest(@NotNull UserStatus status) {}
+
+    /** Usuario edita o proprio perfil (apelido/bio) - ambos opcionais, string vazia limpa o campo. */
+    public record ProfileRequest(@Size(max = 32) String nickname, @Size(max = 190) String bio) {}
 }

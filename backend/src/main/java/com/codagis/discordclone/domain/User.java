@@ -33,6 +33,15 @@ public class User {
 
     private String avatarUrl;
 
+    /** Apelido opcional - se preenchido, aparece em vez do username em qualquer lugar de
+     * exibicao (perfil, etc). O username em si nunca muda por aqui - continua sendo o login
+     * e o que @mencao usa pra combinar (ver mentions.js no frontend). */
+    @Column(length = 32)
+    private String nickname;
+
+    @Column(length = 190)
+    private String bio;
+
     // So o ADMIN pode criar outros usuarios e servidores; USER so acessa o que o ADMIN liberar.
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

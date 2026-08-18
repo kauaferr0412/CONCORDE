@@ -125,6 +125,7 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(User user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(), user.getStatus());
+        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(),
+                user.getStatus(), user.getNickname(), user.getBio());
     }
 }
