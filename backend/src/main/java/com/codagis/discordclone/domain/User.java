@@ -38,6 +38,12 @@ public class User {
     @Builder.Default
     private Role role = Role.USER;
 
+    // Preferencia do proprio usuario de aparecer "offline" pros outros mesmo estando
+    // conectado (igual ao status "invisivel" do Discord) - ver OnlinePresenceService.
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean invisible = false;
+
     @Builder.Default
     private Instant createdAt = Instant.now();
 }

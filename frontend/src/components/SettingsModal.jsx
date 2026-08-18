@@ -70,6 +70,8 @@ export default function SettingsModal({ onClose }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const avatarInputRef = useRef(null);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityError, setVisibilityError] = useState("");
 
   const [inputDevices, setInputDevices] = useState([]);
   const [outputDevices, setOutputDevices] = useState([]);
@@ -178,6 +180,20 @@ export default function SettingsModal({ onClose }) {
     }
   }
 
+  async function handleVisibilityToggle(e) {
+    const invisible = !e.target.checked; // checkbox mostra "Aparecer online" (invertido de invisible)
+    setVisibilityError("");
+    setVisibilitySaving(true);
+    try {
+      const { data } = await api.put("/api/users/me/visibility", { invisible });
+      updateUser({ invisible: data.invisible });
+    } catch (err) {
+      setVisibilityError(err.response?.data?.error || "Não foi possível salvar isso agora");
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -201,6 +217,19 @@ export default function SettingsModal({ onClose }) {
           </div>
         </div>
         {avatarError && <p className="auth-error">{avatarError}</p>}
+
+        <div className="settings-divider" />
+
+        <p className="settings-section-title">Status</p>
+        <label className="settings-checkbox-row">
+          <input type="checkbox" checked={!user?.invisible} onChange={handleVisibilityToggle} disabled={visibilitySaving} />
+          Aparecer online para os outros
+        </label>
+        <p className="admin-hint" style={{ margin: "4px 0 0" }}>
+          Desligado = você continua usando o app normalmente, mas os outros membros veem
+          você como offline na lista de membros.
+        </p>
+        {visibilityError && <p className="auth-error">{visibilityError}</p>}
 
         <div className="settings-divider" />
 

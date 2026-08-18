@@ -78,3 +78,14 @@ export function publishVoiceDeafenState(client, channelId, deafened) {
     body: JSON.stringify({ deafened }),
   });
 }
+
+/**
+ * Presenca GLOBAL (app aberto, nao so' na call de voz) - um usuario por vez, transmitido
+ * pra todo mundo que tem esse topico assinado (ver OnlinePresenceService no backend).
+ * onEvent recebe { userId, online }.
+ */
+export function subscribeToPresence(client, onEvent) {
+  return client.subscribe("/topic/presence", (frame) => {
+    onEvent(JSON.parse(frame.body));
+  });
+}

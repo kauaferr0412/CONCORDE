@@ -16,4 +16,6 @@ public class ServerDtos {
     public record ChannelResponse(Long id, Long serverId, String name, ChannelType type) {}
 
     public record ServerWithChannels(ServerResponse server, List<ChannelResponse> channels) {}
+
+    public record MemberResponse(Long userId, String username, String avatarUrl, boolean online) {}
 }

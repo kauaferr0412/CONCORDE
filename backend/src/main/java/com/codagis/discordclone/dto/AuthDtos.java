@@ -12,7 +12,7 @@ public class AuthDtos {
             @NotBlank String password
     ) {}
 
-    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role) {}
+    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role, boolean invisible) {}
 
     public record AuthResponse(String token, UserResponse user) {}
 
@@ -22,4 +22,7 @@ public class AuthDtos {
             @NotBlank @Email String email,
             @NotBlank @Size(min = 6) String password
     ) {}
+
+    /** Usuario decide se quer aparecer online ou offline pros outros (status "invisivel"). */
+    public record VisibilityRequest(boolean invisible) {}
 }

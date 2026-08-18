@@ -30,6 +30,11 @@ public class ServerController {
         return serverService.createServer(currentUser.id(), req);
     }
 
+    @GetMapping("/{serverId}/members")
+    public List<MemberResponse> listMembers(@PathVariable Long serverId) {
+        return serverService.listMembers(serverId, currentUser.id());
+    }
+
     @GetMapping("/{serverId}/channels")
     public List<ChannelResponse> listChannels(@PathVariable Long serverId) {
         return serverService.listChannels(serverId, currentUser.id());

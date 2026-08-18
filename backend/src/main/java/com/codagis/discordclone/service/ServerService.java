@@ -4,6 +4,7 @@ import com.codagis.discordclone.domain.*;
 import com.codagis.discordclone.dto.ServerDtos.*;
 import com.codagis.discordclone.repository.*;
 import com.codagis.discordclone.security.AdminGuard;
+import com.codagis.discordclone.ws.OnlinePresenceService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +17,19 @@ public class ServerService {
     private final ServerRepository serverRepository;
     private final ChannelRepository channelRepository;
     private final MembershipRepository membershipRepository;
+    private final UserRepository userRepository;
     private final AdminGuard adminGuard;
+    private final OnlinePresenceService presenceService;
 
     public ServerService(ServerRepository serverRepository, ChannelRepository channelRepository,
-                          MembershipRepository membershipRepository, AdminGuard adminGuard) {
+                          MembershipRepository membershipRepository, UserRepository userRepository,
+                          AdminGuard adminGuard, OnlinePresenceService presenceService) {
         this.serverRepository = serverRepository;
         this.channelRepository = channelRepository;
         this.membershipRepository = membershipRepository;
+        this.userRepository = userRepository;
         this.adminGuard = adminGuard;
+        this.presenceService = presenceService;
     }
 
     /** So o ADMIN pode criar servidores. */
@@ -72,6 +78,21 @@ public class ServerService {
         if (!membershipRepository.existsByServerIdAndUserId(serverId, userId)) {
             throw new IllegalStateException("Usuario nao pertence a esse servidor");
         }
+    }
+
+    /** Todo mundo com acesso ao servidor, com quem esta online agora (ver OnlinePresenceService). */
+    public List<MemberResponse> listMembers(Long serverId, Long userId) {
+        assertMember(serverId, userId);
+        List<Membership> memberships = membershipRepository.findByServerId(serverId);
+        List<Long> userIds = memberships.stream().map(Membership::getUserId).toList();
+        var onlineIds = presenceService.onlineAmong(userIds);
+        return userRepository.findAllById(userIds).stream()
+                .map(u -> new MemberResponse(u.getId(), u.getUsername(), u.getAvatarUrl(), onlineIds.contains(u.getId())))
+                .sorted((a, b) -> {
+                    if (a.online() != b.online()) return a.online() ? -1 : 1; // online primeiro
+                    return a.username().compareToIgnoreCase(b.username());
+                })
+                .toList();
     }
 
     public List<ChannelResponse> listChannels(Long serverId, Long userId) {

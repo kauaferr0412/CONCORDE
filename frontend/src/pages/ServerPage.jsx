@@ -7,6 +7,7 @@ import ServerSidebar from "../components/ServerSidebar.jsx";
 import ChannelSidebar from "../components/ChannelSidebar.jsx";
 import ChatWindow from "../components/ChatWindow.jsx";
 import VoiceChannel from "../components/VoiceChannel.jsx";
+import MemberList from "../components/MemberList.jsx";
 import CreateServerModal from "../components/CreateServerModal.jsx";
 import CreateChannelModal from "../components/CreateChannelModal.jsx";
 import SettingsModal from "../components/SettingsModal.jsx";
@@ -124,6 +125,8 @@ export default function ServerPage() {
             stompError={stompError}
           />
         )}
+
+        <MemberList serverId={selectedServerId} stompClient={stompClient} stompConnected={stompConnected} />
 
         {showCreateServer && (
           <CreateServerModal onClose={() => setShowCreateServer(false)} onCreate={handleCreateServer} />
