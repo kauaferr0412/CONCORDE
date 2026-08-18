@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useVoiceCall } from "../context/VoiceCallContext.jsx";
+import { useServerMembers } from "../utils/useServerMembers";
 import { EyeIcon, EyeOffIcon, HeadphonesOffIcon, MaximizeIcon, MicOffIcon, VolumeIcon } from "./icons.jsx";
 import Avatar from "./Avatar.jsx";
+import { MemberRow } from "./MemberList.jsx";
 
 /** Slider de volume 0-200% (o Discord/navegador so vai ate 100% - aqui passa disso via
     Web Audio, ver webAudioMix em VoiceCallContext.jsx). Reaproveitado pra voz e transmissão. */
@@ -29,7 +31,7 @@ function VolumeSlider({ value, onChange, label }) {
  * ela sobrevive mesmo se voce sair desse canal para ler um canal de texto - igual ao
  * Discord, que te mantem na call enquanto voce navega pelo servidor.
  */
-export default function VoiceChannel({ channel }) {
+export default function VoiceChannel({ channel, stompClient, stompConnected }) {
   const {
     activeChannel,
     connected,
@@ -48,6 +50,9 @@ export default function VoiceChannel({ channel }) {
     joinChannel,
     registerVideoContainer,
   } = useVoiceCall();
+  // Hoje nao existe permissao por canal (todo membro do servidor ve todos os canais - ver
+  // README), entao "quem tem acesso a esse canal de voz" = todo membro do servidor.
+  const members = useServerMembers(channel.serverId, stompClient, stompConnected);
 
   const videoContainerRef = useRef(null);
   const isThisChannelActive = connected && activeChannel?.id === channel.id;
@@ -82,6 +87,7 @@ export default function VoiceChannel({ channel }) {
             <button onClick={() => joinChannel(channel)}>Entrar na call</button>
           )}
         </div>
+        <ChannelAccessSection members={members} />
       </div>
     );
   }
@@ -216,7 +222,28 @@ export default function VoiceChannel({ channel }) {
             )}
           </div>
         </section>
+
+        <ChannelAccessSection members={members} />
       </div>
     </div>
+  );
+}
+
+/**
+ * "Quem tem acesso a esse canal" - hoje e' o mesmo que "membros do servidor" (nao existe
+ * permissao por canal ainda, ver README), com o status ao vivo de cada um. Aparece tanto
+ * antes de entrar na call quanto durante ela.
+ */
+function ChannelAccessSection({ members }) {
+  if (members.length === 0) return null;
+  return (
+    <section className="voice-section">
+      <p className="voice-section-title">MEMBROS COM ACESSO A ESSE CANAL — {members.length}</p>
+      <div className="voice-participants">
+        {members.map((m) => (
+          <MemberRow key={m.userId} member={m} />
+        ))}
+      </div>
+    </section>
   );
 }

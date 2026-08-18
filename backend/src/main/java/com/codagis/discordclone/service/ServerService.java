@@ -5,6 +5,7 @@ import com.codagis.discordclone.dto.ServerDtos.*;
 import com.codagis.discordclone.repository.*;
 import com.codagis.discordclone.security.AdminGuard;
 import com.codagis.discordclone.ws.OnlinePresenceService;
+import com.codagis.discordclone.ws.PresenceStatus;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,16 +81,19 @@ public class ServerService {
         }
     }
 
-    /** Todo mundo com acesso ao servidor, com quem esta online agora (ver OnlinePresenceService). */
+    /** Todo mundo com acesso ao servidor (inclusive a esse canal de voz - hoje nao existe
+     * permissao por canal, todo membro ve todos os canais), com o status de cada um agora. */
     public List<MemberResponse> listMembers(Long serverId, Long userId) {
         assertMember(serverId, userId);
         List<Membership> memberships = membershipRepository.findByServerId(serverId);
         List<Long> userIds = memberships.stream().map(Membership::getUserId).toList();
-        var onlineIds = presenceService.onlineAmong(userIds);
+        var statusById = presenceService.effectiveStatusOf(userIds);
         return userRepository.findAllById(userIds).stream()
-                .map(u -> new MemberResponse(u.getId(), u.getUsername(), u.getAvatarUrl(), onlineIds.contains(u.getId())))
+                .map(u -> new MemberResponse(u.getId(), u.getUsername(), u.getAvatarUrl(), statusById.get(u.getId())))
                 .sorted((a, b) -> {
-                    if (a.online() != b.online()) return a.online() ? -1 : 1; // online primeiro
+                    boolean aOffline = a.status() == PresenceStatus.OFFLINE;
+                    boolean bOffline = b.status() == PresenceStatus.OFFLINE;
+                    if (aOffline != bOffline) return aOffline ? 1 : -1; // offline por ultimo
                     return a.username().compareToIgnoreCase(b.username());
                 })
                 .toList();

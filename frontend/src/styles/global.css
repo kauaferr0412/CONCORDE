@@ -464,6 +464,9 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
    Voice
    ============================================================ */
 .voice-join { flex: 1; display: flex; align-items: center; justify-content: center; }
+/* Quando a secao de membros aparece na tela de "Entrar na call" (ainda fora do
+   .voice-body), ela nao tem o padding/gap que as outras secoes ganham la dentro. */
+.voice-channel > .voice-section { margin: 0 24px 24px; }
 .voice-join button { background: var(--accent); color: #fff; padding: 12px 28px; font-size: 14.5px; border-radius: var(--radius-md); }
 .voice-join button:hover { background: var(--accent-hover); }
 .voice-controls { display: flex; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--border-soft); background: var(--bg-panel); }
@@ -661,7 +664,29 @@ img.user-bar-avatar, img.voice-avatar, img.chat-avatar, img.avatar-picker-previe
   border: 2px solid var(--bg-panel);
 }
 .status-dot.online { background: var(--success); }
+.status-dot.away { background: var(--warning, #e0a032); }
+.status-dot.dnd { background: var(--danger); }
 .status-dot.offline { background: var(--text-muted); }
+
+/* Seletor de status em Configuracoes (Online/Ausente/Nao perturbe/Invisivel) */
+.status-picker { display: flex; flex-direction: column; gap: 6px; }
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+}
+.status-option:hover { background: var(--bg-hover); }
+.status-option.active { border-color: rgba(106,108,241,0.4); background: var(--accent-soft); }
+.status-option .status-dot { position: static; border: none; width: 10px; height: 10px; flex-shrink: 0; }
+.status-option span:last-child { display: flex; flex-direction: column; gap: 1px; }
+.status-option strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.status-option small { font-size: 11.5px; color: var(--text-muted); }
 
 .screenshare-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .screenshare-tab {

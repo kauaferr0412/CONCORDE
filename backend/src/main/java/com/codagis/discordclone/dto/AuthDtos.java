@@ -1,8 +1,10 @@
 package com.codagis.discordclone.dto;
 
 import com.codagis.discordclone.domain.Role;
+import com.codagis.discordclone.domain.UserStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class AuthDtos {
@@ -12,7 +14,7 @@ public class AuthDtos {
             @NotBlank String password
     ) {}
 
-    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role, boolean invisible) {}
+    public record UserResponse(Long id, String username, String email, String avatarUrl, Role role, UserStatus status) {}
 
     public record AuthResponse(String token, UserResponse user) {}
 
@@ -23,6 +25,6 @@ public class AuthDtos {
             @NotBlank @Size(min = 6) String password
     ) {}
 
-    /** Usuario decide se quer aparecer online ou offline pros outros (status "invisivel"). */
-    public record VisibilityRequest(boolean invisible) {}
+    /** Usuario troca seu proprio status (Online/Ausente/Nao perturbe/Invisivel). */
+    public record StatusRequest(@NotNull UserStatus status) {}
 }

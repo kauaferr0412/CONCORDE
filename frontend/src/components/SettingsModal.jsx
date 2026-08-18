@@ -24,6 +24,15 @@ import { useAuth } from "../context/AuthContext.jsx";
 import api from "../api/client";
 import Avatar from "./Avatar.jsx";
 
+/** Mesmos 4 status do Discord - "Invisível" nunca aparece como tal pros outros, so' como offline
+    (ver PresenceStatus.java no backend). O proprio usuario sempre ve seu status real aqui. */
+const STATUS_OPTIONS = [
+  { value: "ONLINE", label: "Online", hint: "Aparece disponível pros outros", dotClass: "online" },
+  { value: "AWAY", label: "Ausente", hint: "Aparece com um ícone de ausente", dotClass: "away" },
+  { value: "DND", label: "Não perturbe", hint: "Aparece com um ícone vermelho", dotClass: "dnd" },
+  { value: "INVISIBLE", label: "Invisível", hint: "Aparece offline pra todo mundo, mas continua usando o app normalmente", dotClass: "offline" },
+];
+
 /** Campo de "gravar atalho": clica em Alterar, aperta a combinacao desejada, pronto. */
 function ShortcutRecorder({ value, onChange }) {
   const [recording, setRecording] = useState(false);
@@ -180,13 +189,12 @@ export default function SettingsModal({ onClose }) {
     }
   }
 
-  async function handleVisibilityToggle(e) {
-    const invisible = !e.target.checked; // checkbox mostra "Aparecer online" (invertido de invisible)
+  async function handleStatusChange(status) {
     setVisibilityError("");
     setVisibilitySaving(true);
     try {
-      const { data } = await api.put("/api/users/me/visibility", { invisible });
-      updateUser({ invisible: data.invisible });
+      const { data } = await api.put("/api/users/me/status", { status });
+      updateUser({ status: data.status });
     } catch (err) {
       setVisibilityError(err.response?.data?.error || "Não foi possível salvar isso agora");
     } finally {
@@ -221,14 +229,23 @@ export default function SettingsModal({ onClose }) {
         <div className="settings-divider" />
 
         <p className="settings-section-title">Status</p>
-        <label className="settings-checkbox-row">
-          <input type="checkbox" checked={!user?.invisible} onChange={handleVisibilityToggle} disabled={visibilitySaving} />
-          Aparecer online para os outros
-        </label>
-        <p className="admin-hint" style={{ margin: "4px 0 0" }}>
-          Desligado = você continua usando o app normalmente, mas os outros membros veem
-          você como offline na lista de membros.
-        </p>
+        <div className="status-picker">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={"status-option" + (user?.status === opt.value ? " active" : "")}
+              onClick={() => handleStatusChange(opt.value)}
+              disabled={visibilitySaving}
+            >
+              <span className={"status-dot " + opt.dotClass} />
+              <span>
+                <strong>{opt.label}</strong>
+                <small>{opt.hint}</small>
+              </span>
+            </button>
+          ))}
+        </div>
         {visibilityError && <p className="auth-error">{visibilityError}</p>}
 
         <div className="settings-divider" />

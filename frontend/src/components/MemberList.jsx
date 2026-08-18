@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
-import api from "../api/client";
-import { subscribeToPresence } from "../ws/chatSocket";
+import { useState } from "react";
+import { useServerMembers } from "../utils/useServerMembers";
 import { ChevronsLeftIcon, ChevronsRightIcon, UsersIcon } from "./icons.jsx";
 import Avatar from "./Avatar.jsx";
 
+const STATUS_LABEL = { ONLINE: "Online", AWAY: "Ausente", DND: "Não perturbe", OFFLINE: "Offline" };
+const STATUS_DOT_CLASS = { ONLINE: "online", AWAY: "away", DND: "dnd", OFFLINE: "offline" };
+
 /**
  * Lista de TODOS os membros do servidor (nao so' quem esta numa call de voz - isso ja e'
- * o "CONECTADOS AGORA" do ChannelSidebar), com uma bolinha verde/cinza de online/offline.
- * "Online" aqui = tem o app aberto em algum dispositivo, ver OnlinePresenceService no
- * backend - e o proprio usuario pode escolher aparecer offline mesmo estando conectado
- * (Configuracoes > Aparecer offline).
+ * o "CONECTADOS AGORA" do ChannelSidebar), com o status de cada um (Online/Ausente/Nao
+ * perturbe/Offline - ver PresenceStatus no backend). "Invisível" (escolha do proprio
+ * usuario em Configuracoes) sempre aparece como Offline pra todo mundo, de propositio.
  */
 export default function MemberList({ serverId, stompClient, stompConnected }) {
-  const [members, setMembers] = useState([]);
+  const members = useServerMembers(serverId, stompClient, stompConnected);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("memberListCollapsed") === "true");
 
   function toggleCollapsed() {
@@ -23,36 +24,10 @@ export default function MemberList({ serverId, stompClient, stompConnected }) {
     });
   }
 
-  useEffect(() => {
-    if (!serverId) return;
-    let cancelled = false;
-    api.get(`/api/servers/${serverId}/members`).then(({ data }) => {
-      if (!cancelled) setMembers(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [serverId]);
-
-  // Atualiza so' o membro que mudou (nao precisa buscar a lista inteira de novo a cada
-  // conexao/desconexao de qualquer pessoa no app inteiro).
-  useEffect(() => {
-    if (!stompClient || !stompConnected) return;
-    const sub = subscribeToPresence(stompClient, ({ userId, online }) => {
-      setMembers((prev) => {
-        if (!prev.some((m) => m.userId === userId)) return prev; // nao e' membro desse servidor
-        return prev
-          .map((m) => (m.userId === userId ? { ...m, online } : m))
-          .sort((a, b) => (a.online !== b.online ? (a.online ? -1 : 1) : a.username.localeCompare(b.username)));
-      });
-    });
-    return () => sub.unsubscribe();
-  }, [stompClient, stompConnected]);
-
   if (!serverId) return null;
 
-  const online = members.filter((m) => m.online);
-  const offline = members.filter((m) => !m.online);
+  const online = members.filter((m) => m.status !== "OFFLINE");
+  const offline = members.filter((m) => m.status === "OFFLINE");
 
   return (
     <div className={"member-list" + (collapsed ? " collapsed" : "")}>
@@ -97,12 +72,12 @@ export default function MemberList({ serverId, stompClient, stompConnected }) {
   );
 }
 
-function MemberRow({ member }) {
+export function MemberRow({ member }) {
   return (
-    <div className={"member-row" + (member.online ? "" : " offline")}>
+    <div className={"member-row" + (member.status === "OFFLINE" ? " offline" : "")}>
       <div className="member-avatar-wrap">
         <Avatar name={member.username} url={member.avatarUrl} className="voice-avatar small" />
-        <span className={"status-dot" + (member.online ? " online" : " offline")} />
+        <span className={"status-dot " + STATUS_DOT_CLASS[member.status]} title={STATUS_LABEL[member.status]} />
       </div>
       <span className="member-row-name">{member.username}</span>
     </div>

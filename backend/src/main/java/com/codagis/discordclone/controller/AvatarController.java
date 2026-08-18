@@ -1,12 +1,13 @@
 package com.codagis.discordclone.controller;
 
 import com.codagis.discordclone.domain.User;
+import com.codagis.discordclone.dto.AuthDtos.StatusRequest;
 import com.codagis.discordclone.dto.AuthDtos.UserResponse;
-import com.codagis.discordclone.dto.AuthDtos.VisibilityRequest;
 import com.codagis.discordclone.repository.UserRepository;
 import com.codagis.discordclone.security.CurrentUser;
 import com.codagis.discordclone.service.GcsService;
 import com.codagis.discordclone.ws.OnlinePresenceService;
+import jakarta.validation.Valid;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,22 +44,23 @@ public class AvatarController {
     }
 
     /**
-     * Liga/desliga o modo "aparecer offline" (igual ao status invisivel do Discord) - o
-     * usuario continua conectado normalmente, so' os outros deixam de ver ele como online.
-     * Reflete na hora pra quem estiver com a lista de membros na tela (ver OnlinePresenceService).
+     * Troca o status do usuario logado (Online/Ausente/Nao perturbe/Invisivel). O usuario
+     * continua conectado normalmente em qualquer opcao - so' muda o que os OUTROS enxergam
+     * (Invisivel aparece como offline pra todo mundo, ver OnlinePresenceService). Reflete
+     * na hora pra quem estiver com a lista de membros na tela.
      */
-    @PutMapping("/visibility")
+    @PutMapping("/status")
     @Transactional
-    public UserResponse setVisibility(@RequestBody VisibilityRequest req) {
+    public UserResponse setStatus(@Valid @RequestBody StatusRequest req) {
         Long userId = currentUser.id();
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("Usuario nao encontrado"));
-        user.setInvisible(req.invisible());
+        user.setStatus(req.status());
         userRepository.save(user);
-        presenceService.onVisibilityChanged(userId);
+        presenceService.onStatusChanged(userId);
         return toResponse(user);
     }
 
     private UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(), user.isInvisible());
+        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(), user.getRole(), user.getStatus());
     }
 }

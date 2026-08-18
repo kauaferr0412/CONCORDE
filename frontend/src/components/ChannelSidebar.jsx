@@ -20,6 +20,9 @@ import {
 import Avatar from "./Avatar.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 
+const STATUS_DOT_CLASS = { ONLINE: "online", AWAY: "away", DND: "dnd", INVISIBLE: "offline" };
+const STATUS_LABEL = { ONLINE: "Online", AWAY: "Ausente", DND: "Não perturbe", INVISIBLE: "Invisível" };
+
 export default function ChannelSidebar({
   server,
   channels,
@@ -228,7 +231,13 @@ export default function ChannelSidebar({
 
       <div className="user-bar">
         <div className="user-bar-info">
-          <Avatar name={user?.username} url={user?.avatarUrl} className="user-bar-avatar" />
+          <div className="member-avatar-wrap">
+            <Avatar name={user?.username} url={user?.avatarUrl} className="user-bar-avatar" />
+            <span
+              className={"status-dot " + (STATUS_DOT_CLASS[user?.status] || "online")}
+              title={`Seu status: ${STATUS_LABEL[user?.status] || "Online"} (mude em Configurações)`}
+            />
+          </div>
           <span className="user-bar-name">{user?.username}</span>
           {isAdmin && <span className="admin-badge">admin</span>}
         </div>
